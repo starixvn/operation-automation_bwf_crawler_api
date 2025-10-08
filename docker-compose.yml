@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  badminton-api:
+    build: .
+    container_name: badminton-scraper-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code (development mode)
+      - ./api.py:/app/api.py
+      - ./get_two_days_match_html.py:/app/get_two_days_match_html.py
+      - ./get_this_week_tournament_html.py:/app/get_this_week_tournament_html.py
+      # Mount output directories to local for easy access
+      - ./two_days:/app/two_days
+      - ./this_week:/app/this_week
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WATCHFILES_FORCE_POLLING=true
+    # Use --reload to auto-reload on code changes
+    command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload --reload-delay 1 --timeout-keep-alive 600
+    restart: unless-stopped
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
