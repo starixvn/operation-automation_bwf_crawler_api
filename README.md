@@ -51,9 +51,9 @@ pip install -r requirements.txt
 playwright install chromium
 
 # Start the API server
-python api.py
+python main.py
 # or
-uvicorn api:app --reload
+uvicorn main:app --reload
 ```
 
 ## API Documentation
@@ -209,12 +209,22 @@ The API saves scraped HTML to local directories (also mounted as Docker volumes)
 
 ```
 bwf_crawler_api/
-├── api.py                                # FastAPI application
-├── get_this_week_tournament_html.py      # Weekly tournament scraper
-├── get_two_days_match_html.py            # Two-day schedule scraper
+├── main.py                                # FastAPI application
 ├── requirements.txt                       # Python dependencies
 ├── Dockerfile                             # Docker image configuration
 ├── docker-compose.yml                     # Docker Compose setup
+├── schema/                                # Pydantic models
+│   ├── __init__.py
+│   └── schema.py                          # API request/response models
+├── script/                                # Scraper scripts
+│   ├── __init__.py
+│   ├── get_this_week_tournament_html.py  # Weekly tournament scraper
+│   └── get_two_days_match_html.py        # Two-day schedule scraper
+├── utils/                                 # Utility functions
+│   ├── __init__.py
+│   └── file_utils.py                     # File operations
+├── this_week/                             # Output directory for weekly data
+├── two_days/                              # Output directory for two-day data
 ├── .dockerignore                          # Docker build exclusions
 ├── .gitignore                             # Git exclusions
 └── README.md                              # This file
@@ -285,10 +295,10 @@ Test scrapers independently without the API:
 
 ```bash
 # Test weekly tournament scraper
-python get_this_week_tournament_html.py
+python script/get_this_week_tournament_html.py
 
 # Test two-day schedule scraper
-python get_two_days_match_html.py
+python script/get_two_days_match_html.py
 ```
 
 ### Adding New Features
@@ -296,7 +306,7 @@ python get_two_days_match_html.py
 The codebase is structured for easy extension:
 
 1. **New scraper** - Create a new async function in the scraper modules
-2. **New endpoint** - Add route handler in `api.py`:
+2. **New endpoint** - Add route handler in `main.py`:
    ```python
    @app.post("/api/your-endpoint")
    async def your_endpoint():

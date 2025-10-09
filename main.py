@@ -7,42 +7,14 @@ Provides two main endpoints:
 """
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, HttpUrl
-from typing import List, Optional
+from typing import Optional
 import os
 from datetime import datetime
-import shutil
-import gzip
-import base64
 from playwright.async_api import async_playwright
-from get_this_week_tournament_html import run as run_this_week
-from get_two_days_match_html import main as run_two_days
-
-
-def clear_directory(directory: str) -> None:
-    """Clear all contents of a directory without deleting the directory itself"""
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-    else:
-        for filename in os.listdir(directory):
-            file_path = os.path.join(directory, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                print(f'Failed to delete {file_path}. Reason: {e}')
-
-
-def compress_html(html_content: str) -> dict:
-    """Compress HTML content with gzip and base64 encode"""
-    compressed = gzip.compress(html_content.encode('utf-8'))
-    encoded = base64.b64encode(compressed).decode('ascii')
-    return {
-        "compressed": True,
-        "data": encoded
-    }
+from script.get_this_week_tournament_html import run as run_this_week
+from script.get_two_days_match_html import main as run_two_days
+from schema import TournamentRequest, TournamentData, ScrapeResponse, TwoDaysResponse
+from utils import clear_directory
 
 
 app = FastAPI(
@@ -50,37 +22,6 @@ app = FastAPI(
     description="API for scraping badminton tournament schedules",
     version="1.0.0"
 )
-
-
-class TournamentRequest(BaseModel):
-    """Tournament request model"""
-    urls: List[HttpUrl]
-    output_dir: Optional[str] = "two_days"
-
-
-class TournamentData(BaseModel):
-    """Single tournament data"""
-    tournament_url: str
-    tournament_name: str
-    max_round: Optional[str] = None  # Format: "R32", "R64" etc
-    today_html: Optional[dict] = None  # {"compressed": true, "data": "..."}
-    tomorrow_html: Optional[dict] = None
-
-
-class ScrapeResponse(BaseModel):
-    """Scraper response model"""
-    status: str  # success, failed
-    message: str
-    timestamp: str
-    output_dir: Optional[str] = None
-    files: Optional[dict] = None  # Filename to HTML content mapping
-
-
-class TwoDaysResponse(BaseModel):
-    """Two-days schedule response model"""
-    status: str
-    message: str
-    tournaments: List[TournamentData]
 
 
 @app.get("/")
@@ -123,7 +64,7 @@ async def scrape_this_week_tournaments():
                 file_path = os.path.join(folder, filename)
                 with open(file_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
-                    files[filename] = compress_html(html_content)
+                    files[filename] = html_content
 
         return ScrapeResponse(
             status="success",
@@ -179,7 +120,7 @@ async def scrape_two_days_matches(request: TournamentRequest):
                     tournaments_data[tournament_name] = {}
                 with open(file_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
-                    tournaments_data[tournament_name]['today_html'] = compress_html(html_content)
+                    tournaments_data[tournament_name]['today_html'] = html_content
 
             elif filename.endswith('_tomorrow.html'):
                 tournament_name = filename.replace('_tomorrow.html', '')
@@ -187,7 +128,7 @@ async def scrape_two_days_matches(request: TournamentRequest):
                     tournaments_data[tournament_name] = {}
                 with open(file_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
-                    tournaments_data[tournament_name]['tomorrow_html'] = compress_html(html_content)
+                    tournaments_data[tournament_name]['tomorrow_html'] = html_content
 
             elif filename.endswith('_round_info.json'):
                 tournament_name = filename.replace('_round_info.json', '')
