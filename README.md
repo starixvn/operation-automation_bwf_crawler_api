@@ -289,6 +289,29 @@ The API has a 600-second timeout for long-running scrapes. If you encounter time
 
 ## Development
 
+### Running Tests
+
+Run unit tests to verify functionality:
+
+```bash
+# Install test dependencies (if not already installed)
+pip install -r requirements.txt
+
+# Run all tests
+pytest
+
+# Run tests with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_main.py
+
+# Run tests in Docker
+docker compose run --rm badminton-api pytest
+```
+
+For detailed testing documentation, see [tests/README.md](tests/README.md)
+
 ### Running Standalone Scrapers
 
 Test scrapers independently without the API:

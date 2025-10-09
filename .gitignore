@@ -1,4 +1,32 @@
+# Output directories
 /two_days
 /this_week
+
+# Private files
 CLAUDE.md
+
+# Python cache
 *.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing
+.pytest_cache/
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
