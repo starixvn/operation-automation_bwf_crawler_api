@@ -304,6 +304,69 @@ def extract_tournament_name(url: str) -> str:
     return tournament_name
 
 
+def extract_league_id(url: str) -> str:
+    """
+    Extract league ID from tournament URL
+    
+    Format: https://bwfworldtour.bwfbadminton.com/tournament/5207/victor-denmark-open-2025/...
+    Returns: "5207"
+    
+    Args:
+        url: Tournament URL
+        
+    Returns:
+        League ID (numeric)
+    """
+    if not url:
+        return ""
+    
+    # Extract numeric ID from /tournament/NUMBER/ format
+    match = re.search(r'/tournament/(\d+)/', url)
+    if match:
+        return match.group(1)
+    
+    return ""
+
+
+def format_tournament_name(raw_name: str) -> str:
+    """
+    Format tournament name by extracting middle part and capitalizing
+    
+    Rules:
+    1. Remove first part (before first dash group)
+    2. Remove last part (after last dash group)
+    3. Keep middle part
+    4. Replace dashes with spaces
+    5. Capitalize each word
+    
+    Example:
+        victor-denmark-junior-u17-2025 -> Denmark Junior U17
+        
+    Args:
+        raw_name: Raw tournament name with dashes
+        
+    Returns:
+        Formatted tournament name
+    """
+    if not raw_name:
+        return raw_name
+    
+    # Split by dash
+    parts = raw_name.split('-')
+    
+    # If less than 3 parts, just format what we have
+    if len(parts) < 3:
+        return ' '.join(word.capitalize() for word in parts)
+    
+    # Remove first and last parts, keep middle
+    middle_parts = parts[1:-1]
+    
+    # Join with spaces and capitalize each word
+    formatted = ' '.join(word.capitalize() for word in middle_parts)
+    
+    return formatted
+
+
 def save_tournament_data(url: str, max_round: int, html_results: dict[str, str], output_dir: str = "two_days") -> None:
     """
     Save tournament data to specified folder
@@ -327,10 +390,18 @@ def save_tournament_data(url: str, max_round: int, html_results: dict[str, str],
         with open(tomorrow_file, "w", encoding="utf-8") as f:
             f.write(html_results["tomorrow"])
 
+    # Extract league_id and format league_name
+    league_id = extract_league_id(url)
+    league_name = format_tournament_name(tournament_name)
+    
+    # Format max_round as R+number (e.g., "R32")
+    max_round_str = f"R{max_round}" if max_round else None
+
     round_info = {
         "tournament_url": url,
-        "tournament_name": tournament_name,
-        "max_round": max_round,
+        "league_id": league_id,
+        "league_name": league_name,
+        "max_round": max_round_str,
         "timestamp": datetime.now().isoformat()
     }
     round_file = os.path.join(output_dir, f"{tournament_name}_round_info.json")

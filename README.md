@@ -222,7 +222,15 @@ bwf_crawler_api/
 │   └── get_two_days_match_html.py        # Two-day schedule scraper
 ├── utils/                                 # Utility functions
 │   ├── __init__.py
-│   └── file_utils.py                     # File operations
+│   ├── file_utils.py                     # File operations
+│   └── logger.py                         # Logging configuration
+├── tests/                                 # Test suite
+│   ├── conftest.py
+│   ├── test_main.py
+│   ├── test_schema.py
+│   └── test_utils.py
+├── logs/                                  # Application logs
+│   └── api.log                           # Main log file
 ├── this_week/                             # Output directory for weekly data
 ├── two_days/                              # Output directory for two-day data
 ├── .dockerignore                          # Docker build exclusions
@@ -286,6 +294,73 @@ The API has a 600-second timeout for long-running scrapes. If you encounter time
 - Check your internet connection
 - Verify the tournament URLs are accessible
 - Check container logs: `docker compose logs -f`
+
+## Logging
+
+The application uses structured logging with daily rotation to track operations and errors.
+
+### Log Files
+
+- **Location**: `logs/api.log`
+- **Rotation**: Daily at midnight
+- **Retention**: 7 days (one week)
+- **Format**: Archived logs are named `api.log.YYYY-MM-DD`
+
+### View Logs
+
+```bash
+# View latest logs
+tail -f logs/api.log
+
+# View logs in Docker
+docker compose logs -f badminton-api
+
+# View logs inside container
+docker compose exec badminton-api tail -f /app/logs/api.log
+
+# Search for errors
+grep "ERROR" logs/api.log
+
+# View specific day's logs
+cat logs/api.log.2025-10-13
+```
+
+### What Gets Logged
+
+**✅ Logged:**
+- API startup/shutdown events
+- Scraping start and completion times
+- Number of files/tournaments scraped
+- File sizes (not content)
+- Processing duration
+- Tournament names and URLs
+- Error messages with stack traces
+
+**❌ NOT Logged:**
+- HTML content
+- Actual scraped data
+- Health check requests (DEBUG level only)
+
+### Log Levels
+
+- **INFO**: Normal operations (API start, scraping progress, file metrics)
+- **WARNING**: Non-critical issues (empty URLs, missing data)
+- **ERROR**: Errors with stack traces (scraping failures)
+- **DEBUG**: Detailed information (health checks, verbose debugging)
+
+### Log Example
+
+```
+============================================================
+2025-10-13 10:00:00 - main - INFO - Starting this week tournaments scraping
+2025-10-13 10:00:01 - main - INFO - Cleared output directory: this_week
+2025-10-13 10:00:02 - main - INFO - Launching browser for scraping
+2025-10-13 10:00:10 - main - INFO - Scraped file: page_1.html (size: 12,345 bytes)
+2025-10-13 10:00:12 - main - INFO - Successfully scraped 3 tournament files in 12.34s
+============================================================
+```
+
+For more details, see [logs/README.md](logs/README.md)
 
 ## Development
 

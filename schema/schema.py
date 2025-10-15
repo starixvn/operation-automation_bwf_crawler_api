@@ -15,7 +15,8 @@ class TournamentRequest(BaseModel):
 class TournamentData(BaseModel):
     """Single tournament data"""
     tournament_url: str
-    tournament_name: str
+    league_id: str
+    league_name: str
     max_round: Optional[str] = None  # Format: "R32", "R64" etc
     today_html: Optional[str] = None  # HTML content as string
     tomorrow_html: Optional[str] = None  # HTML content as string

@@ -43,8 +43,9 @@ def sample_html():
 def sample_tournament_data():
     """Sample tournament data for testing"""
     return {
-        "tournament_name": "test-tournament-2025",
-        "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test-tournament-2025",
+        "league_id": "5207",
+        "league_name": "Test Tournament",
+        "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5207/test-tournament-2025/results",
         "max_round": "R32",
         "today_html": "<html><body>Today's matches</body></html>",
         "tomorrow_html": "<html><body>Tomorrow's matches</body></html>"

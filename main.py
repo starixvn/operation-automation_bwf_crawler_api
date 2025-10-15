@@ -9,19 +9,37 @@ Provides two main endpoints:
 from fastapi import FastAPI, HTTPException
 from typing import Optional
 import os
+import time
 from datetime import datetime
 from playwright.async_api import async_playwright
+
 from script.get_this_week_tournament_html import run as run_this_week
 from script.get_two_days_match_html import main as run_two_days
-from schema import TournamentRequest, TournamentData, ScrapeResponse, TwoDaysResponse
-from utils import clear_directory
+from script.tournament_loader import load_tournament_files, build_tournament_list
+from schema import TournamentRequest, ScrapeResponse, TwoDaysResponse
+from utils import clear_directory, setup_logger
 
+# Setup logger
+logger = setup_logger("main", "api.log")
 
 app = FastAPI(
     title="Badminton Tournament Scraper API",
     description="API for scraping badminton tournament schedules",
     version="1.0.0"
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Log application startup"""
+    logger.info("Starting Badminton Tournament Scraper API")
+    logger.info("Version: 1.0.0")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Log application shutdown"""
+    logger.info("Shutting down Badminton Tournament Scraper API")
 
 
 @app.get("/")
@@ -40,6 +58,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    logger.debug("Health check requested")
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
@@ -50,12 +69,18 @@ async def scrape_this_week_tournaments():
 
     Synchronous execution, return result when complete
     """
-    print("Scraping this week tournaments...")
+    import time
+    start_time = time.time()
+    logger.info("=" * 60)
+    logger.info("Starting this week tournaments scraping")
+    
     try:
         folder = "this_week"
         clear_directory(folder)
+        logger.info(f"Cleared output directory: {folder}")
 
         async with async_playwright() as playwright:
+            logger.info("Launching browser for scraping")
             await run_this_week(playwright)
 
         files = {}
@@ -65,7 +90,13 @@ async def scrape_this_week_tournaments():
                 with open(file_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
                     files[filename] = html_content
+                    file_size = len(html_content)
+                    logger.info(f"Scraped file: {filename} (size: {file_size:,} bytes)")
 
+        elapsed_time = time.time() - start_time
+        logger.info(f"Successfully scraped {len(files)} tournament files in {elapsed_time:.2f}s")
+        logger.info("=" * 60)
+        
         return ScrapeResponse(
             status="success",
             message=f"Successfully scraped this week's tournaments, total {len(files)}  files",
@@ -75,6 +106,9 @@ async def scrape_this_week_tournaments():
         )
 
     except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"This week tournaments scraping failed after {elapsed_time:.2f}s: {str(e)}", exc_info=True)
+        logger.info("=" * 60)
         raise HTTPException(
             status_code=500,
             detail=f"Scraping failed: {str(e)}"
@@ -90,66 +124,39 @@ async def scrape_two_days_matches(request: TournamentRequest):
     - urls: Tournament URL list
     - output_dir: Output directory (default: two_days)
 
-    Synchronous execution, return result when complete
+    Returns:
+    - TwoDaysResponse with tournament data including league_id, league_name, and schedules
     """
     if not request.urls:
+        logger.warning("Two days matches request with no URLs")
         raise HTTPException(status_code=400, detail="At least one URL is required")
 
+    start_time = time.time()
+    logger.info("=" * 60)
+    logger.info(f"Starting two days matches scraping for {len(request.urls)} tournaments")
+    
     try:
-        folder = request.output_dir
-        clear_directory(folder)
+        # Prepare and scrape
+        clear_directory(request.output_dir)
+        logger.info(f"Cleared output directory: {request.output_dir}")
 
         url_strings = [str(url) for url in request.urls]
-        url_to_name = {}
-        for url in url_strings:
-            tournament_name = url.rstrip('/').split('/')[-1]
-            url_to_name[tournament_name] = url
-
+        logger.info(f"Queued {len(url_strings)} tournament(s)")
+        
+        logger.info("Launching browser for scraping")
         async with async_playwright() as playwright:
             await run_two_days(playwright, tournament_list=url_strings, output_dir=request.output_dir)
 
-        import json
-        tournaments_data = {}
+        # Load and process files
+        logger.info("Processing scraped files")
+        tournaments_data = load_tournament_files(request.output_dir, logger)
+        tournaments = build_tournament_list(tournaments_data, logger)
 
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-
-            if filename.endswith('_today.html'):
-                tournament_name = filename.replace('_today.html', '')
-                if tournament_name not in tournaments_data:
-                    tournaments_data[tournament_name] = {}
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                    tournaments_data[tournament_name]['today_html'] = html_content
-
-            elif filename.endswith('_tomorrow.html'):
-                tournament_name = filename.replace('_tomorrow.html', '')
-                if tournament_name not in tournaments_data:
-                    tournaments_data[tournament_name] = {}
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                    tournaments_data[tournament_name]['tomorrow_html'] = html_content
-
-            elif filename.endswith('_round_info.json'):
-                tournament_name = filename.replace('_round_info.json', '')
-                if tournament_name not in tournaments_data:
-                    tournaments_data[tournament_name] = {}
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                    if 'max_round' in json_data:
-                        max_round_num = json_data['max_round']
-                        tournaments_data[tournament_name]['max_round'] = f"R{max_round_num}" if max_round_num else None
-
-        tournaments = []
-        for tournament_name, data in tournaments_data.items():
-            tournaments.append(TournamentData(
-                tournament_url=url_to_name.get(tournament_name, ""),
-                tournament_name=tournament_name,
-                max_round=data.get('max_round'),
-                today_html=data.get('today_html'),
-                tomorrow_html=data.get('tomorrow_html')
-            ))
-
+        # Log success
+        elapsed_time = time.time() - start_time
+        logger.info(f"Successfully scraped two days matches for {len(tournaments)} tournaments in {elapsed_time:.2f}s")
+        logger.info("=" * 60)
+        
         return TwoDaysResponse(
             status="success",
             message=f"Successfully scraped today and tomorrow schedules for {len(tournaments)} tournaments",
@@ -157,6 +164,9 @@ async def scrape_two_days_matches(request: TournamentRequest):
         )
 
     except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"Two days matches scraping failed after {elapsed_time:.2f}s: {str(e)}", exc_info=True)
+        logger.info("=" * 60)
         raise HTTPException(
             status_code=500,
             detail=f"Scraping failed: {str(e)}"

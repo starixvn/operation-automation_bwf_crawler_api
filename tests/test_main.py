@@ -136,12 +136,18 @@ class TestTwoDaysMatches:
         os.makedirs(test_folder, exist_ok=True)
         
         tournament_name = "test-tournament-2025"
+        tournament_url = f"https://bwfworldtour.bwfbadminton.com/tournament/1234/{tournament_name}/results"
         with open(os.path.join(test_folder, f"{tournament_name}_today.html"), "w", encoding="utf-8") as f:
             f.write(sample_html)
         with open(os.path.join(test_folder, f"{tournament_name}_tomorrow.html"), "w", encoding="utf-8") as f:
             f.write(sample_html)
         with open(os.path.join(test_folder, f"{tournament_name}_round_info.json"), "w", encoding="utf-8") as f:
-            json.dump({"max_round": 32}, f)
+            json.dump({
+                "tournament_url": tournament_url,
+                "league_id": "1234",
+                "league_name": "Tournament",
+                "max_round": "R32"
+            }, f)
         
         try:
             # Mock playwright context manager
@@ -152,7 +158,7 @@ class TestTwoDaysMatches:
             response = client.post(
                 "/two-days-matches",
                 json={
-                    "urls": [f"https://bwf.tournamentsoftware.com/sport/tournament?id={tournament_name}"]
+                    "urls": [f"https://bwfworldtour.bwfbadminton.com/tournament/1234/{tournament_name}/results"]
                 }
             )
             
@@ -164,7 +170,8 @@ class TestTwoDaysMatches:
             
             # Check tournament data structure
             tournament = data["tournaments"][0]
-            assert "tournament_name" in tournament
+            assert "league_id" in tournament
+            assert "league_name" in tournament
             assert "today_html" in tournament
             assert "tomorrow_html" in tournament
             
@@ -193,7 +200,7 @@ class TestTwoDaysMatches:
         response = client.post(
             "/two-days-matches",
             json={
-                "urls": ["https://bwf.tournamentsoftware.com/sport/tournament?id=test"]
+                "urls": ["https://bwfworldtour.bwfbadminton.com/tournament/9999/test-tournament-2025/results"]
             }
         )
         

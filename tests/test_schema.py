@@ -50,13 +50,15 @@ class TestTournamentData:
         """Test valid tournament data"""
         data = {
             "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test-2025",
-            "tournament_name": "test-tournament-2025",
+            "league_id": "test-2025",
+            "league_name": "Test Tournament",
             "max_round": "R32",
             "today_html": "<html>Today</html>",
             "tomorrow_html": "<html>Tomorrow</html>"
         }
         tournament = TournamentData(**data)
-        assert tournament.tournament_name == "test-tournament-2025"
+        assert tournament.league_id == "test-2025"
+        assert tournament.league_name == "Test Tournament"
         assert tournament.max_round == "R32"
         assert tournament.today_html == "<html>Today</html>"
     
@@ -64,7 +66,8 @@ class TestTournamentData:
         """Test tournament data with optional None values"""
         data = {
             "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test",
-            "tournament_name": "test"
+            "league_id": "test",
+            "league_name": "Test"
         }
         tournament = TournamentData(**data)
         assert tournament.max_round is None
@@ -74,7 +77,7 @@ class TestTournamentData:
     def test_tournament_data_missing_required_fields(self):
         """Test that missing required fields raises validation error"""
         data = {
-            "tournament_name": "test"
+            "league_name": "test"
         }
         with pytest.raises(ValidationError):
             TournamentData(**data)
@@ -120,7 +123,8 @@ class TestTwoDaysResponse:
             "tournaments": [
                 {
                     "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test",
-                    "tournament_name": "test-tournament",
+                    "league_id": "test",
+                    "league_name": "Test Tournament",
                     "max_round": "R32",
                     "today_html": "<html>Today</html>",
                     "tomorrow_html": "<html>Tomorrow</html>"
@@ -130,7 +134,8 @@ class TestTwoDaysResponse:
         response = TwoDaysResponse(**data)
         assert response.status == "success"
         assert len(response.tournaments) == 1
-        assert response.tournaments[0].tournament_name == "test-tournament"
+        assert response.tournaments[0].league_id == "test"
+        assert response.tournaments[0].league_name == "Test Tournament"
     
     def test_two_days_response_empty_tournaments(self):
         """Test two days response with empty tournaments list"""

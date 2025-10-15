@@ -1,6 +1,7 @@
 # Output directories
 /two_days
 /this_week
+/logs
 
 # Private files
 CLAUDE.md

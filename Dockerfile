@@ -10,8 +10,8 @@ WORKDIR /app
 # Copy application files
 COPY . .
 
-# Create output directories
-RUN mkdir -p /app/two_days /app/this_week
+# Create output and logs directories
+RUN mkdir -p /app/two_days /app/this_week /app/logs
 
 # Expose port
 EXPOSE 8000
