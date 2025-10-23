@@ -1,93 +1,434 @@
-# BWF_crawler_api
+# BWF Tournament Scraper API
 
+A FastAPI-based web scraper for extracting Badminton World Federation (BWF) tournament schedules. This service provides RESTful APIs to scrape tournament listings and match schedules from BWF websites using Playwright browser automation.
 
+## Features
 
-## Getting started
+- **This Week's Tournaments** - Scrape paginated list of current week tournaments
+- **Two-Day Schedules** - Extract today and tomorrow match schedules for specific tournaments
+- **Docker Support** - Containerized deployment with Docker Compose
+- **HTML Compression** - Gzip + Base64 encoding to reduce response payload size
+- **Anti-Detection** - Browser automation with webdriver concealment
+- **Dual-Site Support** - Handles both regular BWF and BWF World Tour website formats
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Quick Start
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Option 1: Docker Compose (Recommended)
 
-## Add your files
+```bash
+# Build and start the service
+docker compose up -d
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+# View logs
+docker compose logs -f
+
+# Stop the service
+docker compose down
+```
+
+The API will be available at `http://localhost:8000`
+
+### Option 2: Docker
+
+```bash
+# Build the image
+docker build -t badminton-api .
+
+# Run the container
+docker run -d \
+  -p 8000:8000 \
+  -v $(pwd)/two_days:/app/two_days \
+  -v $(pwd)/this_week:/app/this_week \
+  --name badminton-api \
+  badminton-api
+```
+
+### Option 3: Local Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+playwright install chromium
+
+# Start the API server
+python main.py
+# or
+uvicorn main:app --reload
+```
+
+## API Documentation
+
+Once running, access the interactive API documentation:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### Endpoints
+
+#### Health Check
+
+```bash
+GET /health
+```
+
+Returns server health status.
+
+#### Get This Week's Tournaments
+
+```bash
+GET /this-week-tournaments
+```
+
+Scrapes the current week's tournament list from BWF calendar.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Successfully scraped this week's tournaments, total 3 files",
+  "timestamp": "2025-10-08T10:30:00.123456",
+  "output_dir": "this_week",
+  "files": {
+    "page_1.html": {
+      "compressed": true,
+      "data": "H4sIAAAAAAAA..."
+    }
+  }
+}
+```
+
+#### Get Two-Day Match Schedules
+
+```bash
+POST /two-days-matches
+```
+
+Scrapes today and tomorrow schedules for specified tournament URLs.
+
+**Request Body:**
+```json
+{
+  "urls": [
+    "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/"
+  ],
+  "output_dir": "two_days"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Successfully scraped today and tomorrow schedules for 1 tournaments",
+  "tournaments": [
+    {
+      "tournament_url": "https://...",
+      "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex",
+      "max_round": "R32",
+      "today_html": {
+        "compressed": true,
+        "data": "H4sIAAAAAAAA..."
+      },
+      "tomorrow_html": {
+        "compressed": true,
+        "data": "H4sIAAAAAAAA..."
+      }
+    }
+  ]
+}
+```
+
+## Usage Examples
+
+### Python Example
+
+```python
+import requests
+import gzip
+import base64
+
+BASE_URL = "http://localhost:8000"
+
+# Get this week's tournaments
+response = requests.get(f"{BASE_URL}/this-week-tournaments")
+data = response.json()
+
+if data["status"] == "success":
+    # Decompress HTML
+    for filename, content in data["files"].items():
+        compressed_data = base64.b64decode(content["data"])
+        html = gzip.decompress(compressed_data).decode('utf-8')
+        print(f"{filename}: {len(html)} characters")
+
+# Get two-day schedules
+payload = {
+    "urls": [
+        "https://bwfbadminton.com/tournament/5263/yonex-sunrise-bwf-world-junior-mixed-team-championships-2025"
+    ]
+}
+response = requests.post(f"{BASE_URL}/two-days-matches", json=payload)
+data = response.json()
+
+for tournament in data["tournaments"]:
+    print(f"Tournament: {tournament['tournament_name']}")
+    print(f"Max Round: {tournament['max_round']}")
+```
+
+### cURL Examples
+
+```bash
+# Get this week's tournaments
+curl http://localhost:8000/this-week-tournaments
+
+# Get two-day schedules
+curl -X POST "http://localhost:8000/two-days-matches" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/"
+    ]
+  }'
+```
+
+## Output Files
+
+The API saves scraped HTML to local directories (also mounted as Docker volumes):
+
+### This Week's Tournaments
+- **Directory**: `this_week/`
+- **Files**: `page_1.html`, `page_2.html`, ...
+
+### Two-Day Schedules
+- **Directory**: `two_days/` (customizable via `output_dir` parameter)
+- **Files**:
+  - `{tournament_name}_today.html` - Today's schedule
+  - `{tournament_name}_tomorrow.html` - Tomorrow's schedule
+  - `{tournament_name}_round_info.json` - Tournament metadata
+
+## Project Structure
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.nexdev.net/operation-automation/bwf_crawler_api.git
-git branch -M main
-git push -uf origin main
+bwf_crawler_api/
+├── main.py                                # FastAPI application
+├── requirements.txt                       # Python dependencies
+├── Dockerfile                             # Docker image configuration
+├── docker-compose.yml                     # Docker Compose setup
+├── schema/                                # Pydantic models
+│   ├── __init__.py
+│   └── schema.py                          # API request/response models
+├── script/                                # Scraper scripts
+│   ├── __init__.py
+│   ├── get_this_week_tournament_html.py  # Weekly tournament scraper
+│   └── get_two_days_match_html.py        # Two-day schedule scraper
+├── utils/                                 # Utility functions
+│   ├── __init__.py
+│   ├── file_utils.py                     # File operations
+│   └── logger.py                         # Logging configuration
+├── tests/                                 # Test suite
+│   ├── conftest.py
+│   ├── test_main.py
+│   ├── test_schema.py
+│   └── test_utils.py
+├── logs/                                  # Application logs
+│   └── api.log                           # Main log file
+├── this_week/                             # Output directory for weekly data
+├── two_days/                              # Output directory for two-day data
+├── .dockerignore                          # Docker build exclusions
+├── .gitignore                             # Git exclusions
+└── README.md                              # This file
 ```
 
-## Integrate with your tools
+## Technical Details
 
-- [ ] [Set up project integrations](https://gitlab.nexdev.net/operation-automation/bwf_crawler_api/-/settings/integrations)
+### Supported Websites
 
-## Collaborate with your team
+- **BWF Regular**: `https://bwfbadminton.com/tournament/...`
+- **BWF World Tour**: `https://bwfworldtour.bwfbadminton.com/tournament/.../results/`
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+The scraper automatically detects the site type and uses the appropriate navigation strategy:
+- **Regular sites**: Date navigation via tab clicks
+- **World Tour sites**: Date navigation via URL modification (`/results/YYYY-MM-DD`)
 
-## Test and Deploy
+### Browser Automation
 
-Use the built-in continuous integration in GitLab.
+- Uses Playwright with Chromium
+- Headless mode with anti-detection measures
+- Custom user agent to mimic regular browser
+- Automatic popup/dialog dismissal
+- Waits for dynamic content to load before extraction
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Data Compression
 
-***
+All HTML responses are compressed to reduce payload size:
+1. HTML content is gzipped
+2. Compressed data is base64-encoded
+3. Response includes `{"compressed": true, "data": "..."}`
 
-# Editing this README
+## Troubleshooting
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### Port Already in Use
 
-## Suggestions for a good README
+Check if port 8000 is occupied:
+```bash
+lsof -i :8000
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Change the port in `docker-compose.yml`:
+```yaml
+ports:
+  - "8080:8000"  # Use 8080 instead
+```
 
-## Name
-Choose a self-explaining name for your project.
+### Playwright Browser Issues
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+If running locally, ensure Chromium is installed:
+```bash
+playwright install chromium
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+For Docker, the browser is pre-installed in the image.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### Timeout Errors
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+The API has a 600-second timeout for long-running scrapes. If you encounter timeouts:
+- Check your internet connection
+- Verify the tournament URLs are accessible
+- Check container logs: `docker compose logs -f`
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## Logging
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+The application uses structured logging with daily rotation to track operations and errors.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### Log Files
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+- **Location**: `logs/api.log`
+- **Rotation**: Daily at midnight
+- **Retention**: 7 days (one week)
+- **Format**: Archived logs are named `api.log.YYYY-MM-DD`
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### View Logs
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+```bash
+# View latest logs
+tail -f logs/api.log
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+# View logs in Docker
+docker compose logs -f badminton-api
+
+# View logs inside container
+docker compose exec badminton-api tail -f /app/logs/api.log
+
+# Search for errors
+grep "ERROR" logs/api.log
+
+# View specific day's logs
+cat logs/api.log.2025-10-13
+```
+
+### What Gets Logged
+
+**✅ Logged:**
+- API startup/shutdown events
+- Scraping start and completion times
+- Number of files/tournaments scraped
+- File sizes (not content)
+- Processing duration
+- Tournament names and URLs
+- Error messages with stack traces
+
+**❌ NOT Logged:**
+- HTML content
+- Actual scraped data
+- Health check requests (DEBUG level only)
+
+### Log Levels
+
+- **INFO**: Normal operations (API start, scraping progress, file metrics)
+- **WARNING**: Non-critical issues (empty URLs, missing data)
+- **ERROR**: Errors with stack traces (scraping failures)
+- **DEBUG**: Detailed information (health checks, verbose debugging)
+
+### Log Example
+
+```
+============================================================
+2025-10-13 10:00:00 - main - INFO - Starting this week tournaments scraping
+2025-10-13 10:00:01 - main - INFO - Cleared output directory: this_week
+2025-10-13 10:00:02 - main - INFO - Launching browser for scraping
+2025-10-13 10:00:10 - main - INFO - Scraped file: page_1.html (size: 12,345 bytes)
+2025-10-13 10:00:12 - main - INFO - Successfully scraped 3 tournament files in 12.34s
+============================================================
+```
+
+For more details, see [logs/README.md](logs/README.md)
+
+## Development
+
+### Running Tests
+
+Run unit tests to verify functionality:
+
+```bash
+# Install test dependencies (if not already installed)
+pip install -r requirements.txt
+
+# Run all tests
+pytest
+
+# Run tests with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_main.py
+
+# Run tests in Docker
+docker compose run --rm badminton-api pytest
+```
+
+For detailed testing documentation, see [tests/README.md](tests/README.md)
+
+### Running Standalone Scrapers
+
+Test scrapers independently without the API:
+
+```bash
+# Test weekly tournament scraper
+python script/get_this_week_tournament_html.py
+
+# Test two-day schedule scraper
+python script/get_two_days_match_html.py
+```
+
+### Adding New Features
+
+The codebase is structured for easy extension:
+
+1. **New scraper** - Create a new async function in the scraper modules
+2. **New endpoint** - Add route handler in `main.py`:
+   ```python
+   @app.post("/api/your-endpoint")
+   async def your_endpoint():
+       # Your implementation
+       pass
+   ```
+
+## Limitations
+
+- Only supports BWF official websites
+- Para-badminton tournaments are automatically skipped
+- Requires stable internet connection for scraping
+- Scraping operations are synchronous (blocking)
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This project is for educational and research purposes only. Please respect BWF's terms of service and robots.txt policies.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## Acknowledgments
+
+- [BWF (Badminton World Federation)](https://bwfbadminton.com/) for tournament data
+- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
+- [Playwright](https://playwright.dev/) for browser automation

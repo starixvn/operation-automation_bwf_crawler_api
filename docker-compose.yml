@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  badminton-api:
+    build: .
+    container_name: badminton-scraper-api
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WATCHFILES_FORCE_POLLING=true
+    restart: unless-stopped
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
