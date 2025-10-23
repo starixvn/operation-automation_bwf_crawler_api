@@ -4,6 +4,7 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
+from unidecode import unidecode
 from playwright.async_api import Page, Playwright, async_playwright
 
 DEFAULT_TOURNAMENT_LIST = [
@@ -14,7 +15,6 @@ DEFAULT_TOURNAMENT_LIST = [
     "https://bwfbadminton.com/tournament/5412/roketto-sydney-international-2025",
     "https://bwfbadminton.com/tournament/5522/algeria-international-2025"
 ]
-
 
 def find_max_round(html: str) -> Optional[int]:
     """
@@ -333,14 +333,11 @@ def format_tournament_name(raw_name: str) -> str:
     Format tournament name by extracting middle part and capitalizing
     
     Rules:
-    1. Remove first part (before first dash group)
-    2. Remove last part (after last dash group)
-    3. Keep middle part
-    4. Replace dashes with spaces
-    5. Capitalize each word
+    1. Replace dashes with spaces
+    2. Capitalize each word
     
     Example:
-        victor-denmark-junior-u17-2025 -> Denmark Junior U17
+        victor-denmark-junior-u17-2025 -> Victor Denmark Junior U17 2025
         
     Args:
         raw_name: Raw tournament name with dashes
@@ -354,25 +351,19 @@ def format_tournament_name(raw_name: str) -> str:
     # Split by dash
     parts = raw_name.split('-')
     
-    # If less than 3 parts, just format what we have
-    if len(parts) < 3:
-        return ' '.join(word.capitalize() for word in parts)
-    
-    # Remove first and last parts, keep middle
-    middle_parts = parts[1:-1]
-    
     # Join with spaces and capitalize each word
-    formatted = ' '.join(word.capitalize() for word in middle_parts)
+    formatted = ' '.join(word.capitalize() for word in parts)
     
     return formatted
 
 
-def save_tournament_data(url: str, max_round: int, html_results: dict[str, str], output_dir: str = "two_days") -> None:
+def save_tournament_data(url: str, level: str, max_round: int, html_results: dict[str, str], output_dir: str = "two_days") -> None:
     """
     Save tournament data to specified folder
 
     Args:
         url: tournament URL
+        level: tournament level/category
         max_round: Maximum round number
         html_results: {"today": html, "tomorrow": html}
         output_dir: output directory path
@@ -383,12 +374,12 @@ def save_tournament_data(url: str, max_round: int, html_results: dict[str, str],
     if "today" in html_results:
         today_file = os.path.join(output_dir, f"{tournament_name}_today.html")
         with open(today_file, "w", encoding="utf-8") as f:
-            f.write(html_results["today"])
+            f.write(unidecode(html_results["today"]))
 
     if "tomorrow" in html_results:
         tomorrow_file = os.path.join(output_dir, f"{tournament_name}_tomorrow.html")
         with open(tomorrow_file, "w", encoding="utf-8") as f:
-            f.write(html_results["tomorrow"])
+            f.write(unidecode(html_results["tomorrow"]))
 
     # Extract league_id and format league_name
     league_id = extract_league_id(url)
@@ -396,11 +387,16 @@ def save_tournament_data(url: str, max_round: int, html_results: dict[str, str],
     
     # Format max_round as R+number (e.g., "R32")
     max_round_str = f"R{max_round}" if max_round else None
+    
+    # Determine age category based on level
+    age_category = "Juniors" if "junior" in level.lower() else "Adults"
 
     round_info = {
         "tournament_url": url,
         "league_id": league_id,
         "league_name": league_name,
+        "level": level,
+        "age_category": age_category,
         "max_round": max_round_str,
         "timestamp": datetime.now().isoformat()
     }
@@ -620,13 +616,14 @@ async def find_max_round_for_tournament(
         return max_round, current_date_index, None
 
 
-async def run(playwright: Playwright, url: str, output_dir: str = "two_days") -> None:
+async def run(playwright: Playwright, url: str, level: str, output_dir: str = "two_days") -> None:
     """
     Main process for handling single tournament
 
     Args:
         playwright: Playwright instance
         url: tournament URL
+        level: tournament level
         output_dir: output directory path
     """
     is_worldtour = is_bwfworldtour_url(url)
@@ -675,30 +672,28 @@ async def run(playwright: Playwright, url: str, output_dir: str = "two_days") ->
         html_results = await collect_today_tomorrow_schedules(page, all_date_buttons, total_dates, current_date_index)
 
     if html_results:
-        save_tournament_data(url, max_round, html_results, output_dir)
+        save_tournament_data(url, level, max_round, html_results, output_dir)
 
     if not is_worldtour:
         await context.close()
         await browser.close()
 
 
-async def main(playwright: Playwright, tournament_list: list[str] = None, output_dir: str = "two_days") -> None:
+async def main(playwright: Playwright, tournament_list: list[str] = None, level_list: list[str] = None, output_dir: str = "two_days") -> None:
     """
     Main program entry
 
     Args:
         playwright: Playwright instance
         tournament_list: tournament URL list, use default list if not provided
+        level_list: tournament level list, use default list if not provided
         output_dir: output directory path
     """
     if tournament_list is None:
         tournament_list = DEFAULT_TOURNAMENT_LIST
 
-    for url in tournament_list:
-        if re.search(r'[-/]para[-/]', url.lower()):
-            continue
-
-        await run(playwright, url, output_dir)
+    for i, url in enumerate(tournament_list):
+        await run(playwright, url, level_list[i], output_dir)
 
 
 if __name__ == "__main__":

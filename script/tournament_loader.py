@@ -54,6 +54,8 @@ def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict[s
             'tournament_url': json_data.get('tournament_url', ''),
             'league_id': json_data.get('league_id', ''),
             'league_name': json_data.get('league_name', ''),
+            'level': json_data.get('level', ''),
+            'age_category': json_data.get('age_category', ''),
             'max_round': json_data.get('max_round')
         }
 
@@ -72,6 +74,8 @@ def load_tournament_files(folder: str, logger=None) -> Dict[str, Dict]:
             tournament_name: {
                 today_html: str,
                 tomorrow_html: str,
+                level: str,
+                age_category: str,
                 tournament_url: str,
                 league_id: str,
                 league_name: str,
@@ -135,6 +139,8 @@ def build_tournament_list(tournaments_data: Dict[str, Dict], logger=None) -> Lis
             tournament_url=data.get('tournament_url', ''),
             league_id=data.get('league_id', ''),
             league_name=data.get('league_name', ''),
+            level=data.get('level', ''),
+            age_category=data.get('age_category', ''),
             max_round=data.get('max_round'),
             today_html=data.get('today_html'),
             tomorrow_html=data.get('tomorrow_html')

@@ -16,6 +16,7 @@ from playwright.async_api import async_playwright
 from script.get_this_week_tournament_html import run as run_this_week
 from script.get_two_days_match_html import main as run_two_days
 from script.tournament_loader import load_tournament_files, build_tournament_list
+from script.tournament_filter import filter_tournaments
 from schema import TournamentRequest, ScrapeResponse, TwoDaysResponse
 from utils import clear_directory, setup_logger
 
@@ -121,31 +122,56 @@ async def scrape_two_days_matches(request: TournamentRequest):
     Scrape today and tomorrow schedules for specified tournaments
 
     Parameters:
-    - urls: Tournament URL list
+    - tournaments: List of tournament objects with url and level
+        - url: Tournament URL
+        - level: Tournament level/category
     - output_dir: Output directory (default: two_days)
+
+    Excluded tournaments:
+    - Empty level
+    - Level contains "para"
+    - International Series
+    - International Challenge
+    - Junior International Series
+    - Junior Tournament
 
     Returns:
     - TwoDaysResponse with tournament data including league_id, league_name, and schedules
     """
-    if not request.urls:
-        logger.warning("Two days matches request with no URLs")
-        raise HTTPException(status_code=400, detail="At least one URL is required")
+    if not request.tournaments:
+        logger.warning("Two days matches request with no tournaments")
+        raise HTTPException(status_code=400, detail="At least one tournament is required")
 
     start_time = time.time()
     logger.info("=" * 60)
-    logger.info(f"Starting two days matches scraping for {len(request.urls)} tournaments")
+    logger.info(f"Starting two days matches scraping for {len(request.tournaments)} tournaments")
     
     try:
+        # Filter tournaments
+        valid_tournaments, excluded_count = filter_tournaments(request.tournaments)
+        
+        if excluded_count > 0:
+            logger.info(f"Excluded {excluded_count} tournament(s) based on level filters")
+        
+        if not valid_tournaments:
+            logger.warning("No valid tournaments after filtering")
+            return TwoDaysResponse(
+                status="success",
+                message="No tournaments to scrape after filtering",
+                tournaments=[]
+            )
+        
         # Prepare and scrape
         clear_directory(request.output_dir)
         logger.info(f"Cleared output directory: {request.output_dir}")
 
-        url_strings = [str(url) for url in request.urls]
-        logger.info(f"Queued {len(url_strings)} tournament(s)")
+        url_strings = [str(t.url) for t in valid_tournaments]
+        level_strings = [t.level for t in valid_tournaments]
+        logger.info(f"Queued {len(url_strings)} tournament(s) for scraping")
         
         logger.info("Launching browser for scraping")
         async with async_playwright() as playwright:
-            await run_two_days(playwright, tournament_list=url_strings, output_dir=request.output_dir)
+            await run_two_days(playwright, tournament_list=url_strings, level_list=level_strings, output_dir=request.output_dir)
 
         # Load and process files
         logger.info("Processing scraped files")
