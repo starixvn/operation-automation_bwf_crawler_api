@@ -314,8 +314,6 @@ async def collect_today_tomorrow_schedules(page: Page, all_date_buttons, total_d
             date_tab_texts.append("")
 
     today = datetime.now()
-    #TODO: remove this after testing
-    today = datetime(2025, 10, 23)
     tomorrow = today + timedelta(days=1)
 
     today_index = find_date_tab_index(date_tab_texts, today)
@@ -527,8 +525,6 @@ async def collect_schedules_by_url(playwright: Playwright, base_url: str, output
         dict: {"today": html, "tomorrow": html}
     """
     today = datetime.now()
-    #TODO: remove this after testing
-    today = datetime(2025, 10, 23)
     tomorrow = today + timedelta(days=1)
 
     html_results = {}
