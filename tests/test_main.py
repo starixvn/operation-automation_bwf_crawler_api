@@ -146,7 +146,9 @@ class TestTwoDaysMatches:
                 "tournament_url": tournament_url,
                 "league_id": "1234",
                 "league_name": "Tournament",
-                "max_round": "R32"
+                "level": "BWF Tour Super 100",
+                "age_category": "Adults",
+                "mode_max_round": {"MS": "R32", "WS": "R16"}
             }, f)
         
         try:

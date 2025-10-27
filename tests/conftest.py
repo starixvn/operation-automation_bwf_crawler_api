@@ -46,7 +46,7 @@ def sample_tournament_data():
         "league_id": "5207",
         "league_name": "Test Tournament",
         "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5207/test-tournament-2025/results",
-        "max_round": "R32",
+        "mode_max_round": {"MS": "R32", "WS": "R16"},
         "today_html": "<html><body>Today's matches</body></html>",
         "tomorrow_html": "<html><body>Tomorrow's matches</body></html>"
     }

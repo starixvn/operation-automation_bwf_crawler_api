@@ -34,7 +34,7 @@ def load_html_file(file_path: str, tournament_name: str, data_key: str, log_labe
         return html_content, file_size
 
 
-def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict[str, str]:
+def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict:
     """
     Load round_info.json and return tournament metadata
     
@@ -44,19 +44,20 @@ def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict[s
         logger: Optional logger instance
         
     Returns:
-        Dictionary containing tournament_url, league_id, league_name, max_round
+        Dictionary containing tournament_url, league_id, league_name, mode_max_round
     """
     with open(file_path, 'r', encoding='utf-8') as f:
         json_data = json.load(f)
+        mode_max_round = json_data.get('mode_max_round', {})
         if logger:
-            logger.info(f"  {tournament_name}: max_round={json_data.get('max_round')}")
+            logger.info(f"  {tournament_name}: mode_max_round={mode_max_round}")
         return {
             'tournament_url': json_data.get('tournament_url', ''),
             'league_id': json_data.get('league_id', ''),
             'league_name': json_data.get('league_name', ''),
             'level': json_data.get('level', ''),
             'age_category': json_data.get('age_category', ''),
-            'max_round': json_data.get('max_round')
+            'mode_max_round': mode_max_round
         }
 
 
@@ -79,7 +80,7 @@ def load_tournament_files(folder: str, logger=None) -> Dict[str, Dict]:
                 tournament_url: str,
                 league_id: str,
                 league_name: str,
-                max_round: str
+                mode_max_round: dict
             }
         }
     """
@@ -127,12 +128,13 @@ def build_tournament_list(tournaments_data: Dict[str, Dict], logger=None) -> Lis
     for tournament_name, data in tournaments_data.items():
         has_today = 'today_html' in data
         has_tomorrow = 'tomorrow_html' in data
+        mode_max_round = data.get('mode_max_round', {})
         
         if logger:
             logger.info(
                 f"Tournament {tournament_name} ({data.get('league_name', 'N/A')}, "
                 f"ID: {data.get('league_id', 'N/A')}): "
-                f"today={has_today}, tomorrow={has_tomorrow}, max_round={data.get('max_round', 'N/A')}"
+                f"today={has_today}, tomorrow={has_tomorrow}, mode_max_round={mode_max_round}"
             )
         
         tournaments.append(TournamentData(
@@ -141,7 +143,7 @@ def build_tournament_list(tournaments_data: Dict[str, Dict], logger=None) -> Lis
             league_name=data.get('league_name', ''),
             level=data.get('level', ''),
             age_category=data.get('age_category', ''),
-            max_round=data.get('max_round'),
+            mode_max_round=mode_max_round,
             today_html=data.get('today_html'),
             tomorrow_html=data.get('tomorrow_html')
         ))

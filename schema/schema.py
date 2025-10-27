@@ -25,7 +25,7 @@ class TournamentData(BaseModel):
     league_name: str
     level: str
     age_category: str  # "Juniors" or "Adults"
-    max_round: Optional[str] = None  # Format: "R32", "R64" etc
+    mode_max_round: Optional[dict] = None  # Format: {"MS": "R32", "WS": "R16", ...}
     today_html: Optional[str] = None  # HTML content as string
     tomorrow_html: Optional[str] = None  # HTML content as string
 

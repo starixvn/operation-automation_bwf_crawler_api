@@ -45,6 +45,61 @@ def find_max_round(html: str) -> Optional[int]:
         return None
 
 
+def find_mode_max_round(html: str) -> dict[str, str]:
+    """
+    Find the maximum round for each mode (MS/WS/MD/WD/XD) from HTML
+    
+    Args:
+        html: HTML content of the schedule
+    
+    Returns:
+        Dictionary with mode as key and max round (e.g., "R32") as value
+        Example: {"MS": "R32", "WS": "R16", "XD": "R32"}
+    """
+    # Define valid modes
+    valid_modes = {'MS', 'WS', 'MD', 'WD', 'XD'}
+    
+    # Store max round for each mode
+    mode_max_round = {}
+    
+    # Find all footer-wrapper sections
+    footer_pattern = r'<div class="footer-wrapper">(.*?)</div>\s*</div>\s*</div>\s*</div>'
+    footers = re.findall(footer_pattern, html, re.DOTALL)
+    
+    for footer in footers:
+        # Extract all footer-label contents in this footer
+        labels = re.findall(r'<span class="footer-label">\s*([^<]+?)\s*</span>', footer)
+        
+        if len(labels) < 2:
+            continue
+            
+        # First label should be mode, second should be round
+        mode = labels[0].strip()
+        round_label = labels[1].strip()
+        
+        # Validate mode and round format
+        if mode not in valid_modes:
+            continue
+            
+        # Only match pure R+number format
+        round_match = re.match(r'^R(\d+)$', round_label)
+        if not round_match:
+            continue
+            
+        round_num = int(round_match.group(1))
+        
+        # Update max round for this mode
+        if mode not in mode_max_round:
+            mode_max_round[mode] = round_num
+        else:
+            mode_max_round[mode] = max(mode_max_round[mode], round_num)
+    
+    # Convert numbers back to R format (e.g., 32 -> "R32")
+    result = {mode: f"R{num}" for mode, num in mode_max_round.items()}
+    
+    return result
+
+
 async def close_popup_if_exists(page: Page) -> None:
     """Close popup window if exists"""
     try:
@@ -129,13 +184,16 @@ async def get_schedule_html(page: Page) -> Optional[str]:
     return await page.locator(".container.results-wrapper").evaluate("el => el.outerHTML")
 
 
-async def find_first_valid_round(page: Page, total_dates: int, all_date_buttons) -> tuple[Optional[int], Optional[int]]:
+async def find_first_valid_round(page: Page, total_dates: int, all_date_buttons) -> tuple[Optional[int], dict[str, str]]:
     """
-    Iterate all date tabs, find first date with R+number content
+    Iterate all date tabs and collect mode max rounds from all dates
 
     Returns:
-        tuple[Optional[int], Optional[int]]: (max round number, current date index)
+        tuple[Optional[int], dict]: (first valid date index, mode_max_round dict)
     """
+    first_valid_date_index = None
+    all_mode_max_round = {}
+    
     for date_index in range(total_dates):
         button = all_date_buttons.nth(date_index)
         await button.click(force=True)
@@ -147,11 +205,23 @@ async def find_first_valid_round(page: Page, total_dates: int, all_date_buttons)
         if html is None:
             continue
 
-        max_round = find_max_round(html)
-        if max_round is not None:
-            return max_round, date_index
+        current_mode_max_round = find_mode_max_round(html)
+        
+        # Set first valid date index
+        if current_mode_max_round and first_valid_date_index is None:
+            first_valid_date_index = date_index
+        
+        # Merge mode max rounds - keep the maximum for each mode
+        for mode, round_str in current_mode_max_round.items():
+            round_num = int(round_str[1:])  # Remove 'R' prefix and convert to int
+            if mode not in all_mode_max_round:
+                all_mode_max_round[mode] = round_str
+            else:
+                existing_num = int(all_mode_max_round[mode][1:])
+                if round_num > existing_num:
+                    all_mode_max_round[mode] = round_str
 
-    return None, None
+    return first_valid_date_index, all_mode_max_round
 
 
 def format_date_string(date: datetime) -> tuple[str, str, str, str]:
@@ -244,6 +314,8 @@ async def collect_today_tomorrow_schedules(page: Page, all_date_buttons, total_d
             date_tab_texts.append("")
 
     today = datetime.now()
+    #TODO: remove this after testing
+    today = datetime(2025, 10, 23)
     tomorrow = today + timedelta(days=1)
 
     today_index = find_date_tab_index(date_tab_texts, today)
@@ -357,15 +429,15 @@ def format_tournament_name(raw_name: str) -> str:
     return formatted
 
 
-def save_tournament_data(url: str, level: str, max_round: int, html_results: dict[str, str], output_dir: str = "two_days") -> None:
+def save_tournament_data(url: str, level: str, html_results: dict[str, str], mode_max_round: dict[str, str], output_dir: str = "two_days") -> None:
     """
     Save tournament data to specified folder
 
     Args:
         url: tournament URL
         level: tournament level/category
-        max_round: Maximum round number
         html_results: {"today": html, "tomorrow": html}
+        mode_max_round: Dictionary of max round for each mode (e.g., {"MS": "R32", "WS": "R16"})
         output_dir: output directory path
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -385,9 +457,6 @@ def save_tournament_data(url: str, level: str, max_round: int, html_results: dic
     league_id = extract_league_id(url)
     league_name = format_tournament_name(tournament_name)
     
-    # Format max_round as R+number (e.g., "R32")
-    max_round_str = f"R{max_round}" if max_round else None
-    
     # Determine age category based on level
     age_category = "Juniors" if "junior" in level.lower() else "Adults"
 
@@ -397,7 +466,7 @@ def save_tournament_data(url: str, level: str, max_round: int, html_results: dic
         "league_name": league_name,
         "level": level,
         "age_category": age_category,
-        "max_round": max_round_str,
+        "mode_max_round": mode_max_round,
         "timestamp": datetime.now().isoformat()
     }
     round_file = os.path.join(output_dir, f"{tournament_name}_round_info.json")
@@ -458,6 +527,8 @@ async def collect_schedules_by_url(playwright: Playwright, base_url: str, output
         dict: {"today": html, "tomorrow": html}
     """
     today = datetime.now()
+    #TODO: remove this after testing
+    today = datetime(2025, 10, 23)
     tomorrow = today + timedelta(days=1)
 
     html_results = {}
@@ -531,9 +602,9 @@ def extract_dates_from_tabs(date_tab_texts: list[str]) -> list[datetime]:
     return dates
 
 
-async def find_first_valid_round_by_url(playwright: Playwright, base_url: str, dates: list[datetime]) -> tuple[Optional[int], Optional[datetime]]:
+async def find_first_valid_round_by_url(playwright: Playwright, base_url: str, dates: list[datetime]) -> tuple[Optional[datetime], dict[str, str]]:
     """
-    Use URL to switch dates, find first date with R+number content (for bwfworldtour website)
+    Use URL to switch dates and collect mode max rounds from all dates (for bwfworldtour website)
 
     Args:
         playwright: Playwright instance
@@ -541,8 +612,11 @@ async def find_first_valid_round_by_url(playwright: Playwright, base_url: str, d
         dates: Date list to check
 
     Returns:
-        tuple[Optional[int], Optional[datetime]]: (max round number, found date)
+        tuple[Optional[datetime], dict]: (first valid date, mode_max_round dict)
     """
+    first_valid_date = None
+    all_mode_max_round = {}
+    
     for date in dates:
         date_url = get_date_url(base_url, date)
 
@@ -551,11 +625,23 @@ async def find_first_valid_round_by_url(playwright: Playwright, base_url: str, d
         if html is None:
             continue
 
-        max_round = find_max_round(html)
-        if max_round is not None:
-            return max_round, date
+        current_mode_max_round = find_mode_max_round(html)
+        
+        # Set first valid date
+        if current_mode_max_round and first_valid_date is None:
+            first_valid_date = date
+        
+        # Merge mode max rounds - keep the maximum for each mode
+        for mode, round_str in current_mode_max_round.items():
+            round_num = int(round_str[1:])  # Remove 'R' prefix and convert to int
+            if mode not in all_mode_max_round:
+                all_mode_max_round[mode] = round_str
+            else:
+                existing_num = int(all_mode_max_round[mode][1:])
+                if round_num > existing_num:
+                    all_mode_max_round[mode] = round_str
 
-    return None, None
+    return first_valid_date, all_mode_max_round
 
 
 async def get_date_tab_texts(page: Page) -> tuple[list[str], int, any, bool]:
@@ -589,9 +675,9 @@ async def find_max_round_for_tournament(
     total_dates: int,
     all_date_buttons,
     is_worldtour: bool
-) -> tuple[Optional[int], Optional[int], Optional[datetime]]:
+) -> tuple[Optional[int], Optional[datetime], dict[str, str]]:
     """
-    Find tournament max round
+    Find tournament mode max rounds
 
     Args:
         playwright: Playwright instance
@@ -603,17 +689,17 @@ async def find_max_round_for_tournament(
         is_worldtour: whether is bwfworldtour website
 
     Returns:
-        tuple: (max round, current date index, found date)
+        tuple: (current date index or None, found date or None, mode_max_round dict)
     """
     if is_worldtour:
         # bwfworldtour website: use URL to switch dates
         dates = extract_dates_from_tabs(date_tab_texts)
-        max_round, found_date = await find_first_valid_round_by_url(playwright, url, dates)
-        return max_round, None, found_date
+        found_date, mode_max_round = await find_first_valid_round_by_url(playwright, url, dates)
+        return None, found_date, mode_max_round
     else:
         # Regular website: use tab clicks
-        max_round, current_date_index = await find_first_valid_round(page, total_dates, all_date_buttons)
-        return max_round, current_date_index, None
+        current_date_index, mode_max_round = await find_first_valid_round(page, total_dates, all_date_buttons)
+        return current_date_index, None, mode_max_round
 
 
 async def run(playwright: Playwright, url: str, level: str, output_dir: str = "two_days") -> None:
@@ -659,12 +745,9 @@ async def run(playwright: Playwright, url: str, level: str, output_dir: str = "t
         await context.close()
         await browser.close()
 
-    max_round, current_date_index, found_date = await find_max_round_for_tournament(
+    current_date_index, found_date, mode_max_round = await find_max_round_for_tournament(
         playwright, url, page, date_tab_texts, total_dates, all_date_buttons, is_worldtour
     )
-
-    if max_round is None:
-        max_round = 0
 
     if is_worldtour:
         html_results = await collect_schedules_by_url(playwright, url, output_dir)
@@ -672,7 +755,7 @@ async def run(playwright: Playwright, url: str, level: str, output_dir: str = "t
         html_results = await collect_today_tomorrow_schedules(page, all_date_buttons, total_dates, current_date_index)
 
     if html_results:
-        save_tournament_data(url, level, max_round, html_results, output_dir)
+        save_tournament_data(url, level, html_results, mode_max_round, output_dir)
 
     if not is_worldtour:
         await context.close()
