@@ -18,6 +18,13 @@ class TournamentRequest(BaseModel):
     output_dir: Optional[str] = "two_days"
 
 
+class DateTournamentRequest(BaseModel):
+    """Tournament request model with specific date"""
+    date: str  # Format: YYYY-MM-DD
+    tournaments: List[TournamentInput]
+    output_dir: Optional[str] = "yesterday/leagues"
+
+
 class TournamentData(BaseModel):
     """Single tournament data"""
     tournament_url: str
@@ -44,4 +51,18 @@ class TwoDaysResponse(BaseModel):
     status: str
     message: str
     tournaments: List[TournamentData]
+
+
+class TournamentListItem(BaseModel):
+    """Tournament list item (without HTML)"""
+    tournament_url: str
+    level: str
+
+
+class TournamentListResponse(BaseModel):
+    """Tournament list response model"""
+    status: str
+    message: str
+    date: str
+    tournaments: List[TournamentListItem]
 

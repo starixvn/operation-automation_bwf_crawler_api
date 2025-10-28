@@ -92,22 +92,49 @@ def load_tournament_files(folder: str, logger=None) -> Dict[str, Dict]:
         '_tomorrow.html': ('tomorrow_html', 'tomorrow schedule'),
     }
     
+    # Pattern for date-specific files (e.g., tournament-name_2025-10-28.html)
+    import re
+    date_pattern = re.compile(r'_(\d{4}-\d{2}-\d{2})\.html$')
+    
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
         
-        # Handle HTML files
+        # Handle HTML files with specific date (e.g., tournament-name_2025-10-28.html)
+        date_match = date_pattern.search(filename)
+        if date_match and filename.endswith('.html'):
+            date_str = date_match.group(1)
+            tournament_name = filename[:date_match.start()]
+            html_content, _ = load_html_file(file_path, tournament_name, 'today_html', f'{date_str} schedule', logger)
+            tournaments_data[tournament_name]['today_html'] = html_content
+            continue
+        
+        # Handle HTML files with standard suffixes
+        handled = False
         for suffix, (data_key, log_label) in file_handlers.items():
             if filename.endswith(suffix):
                 tournament_name = filename.replace(suffix, '')
                 html_content, _ = load_html_file(file_path, tournament_name, data_key, log_label, logger)
                 tournaments_data[tournament_name][data_key] = html_content
+                handled = True
                 break
+        
+        if handled:
+            continue
         
         # Handle round_info.json
         if filename.endswith('_round_info.json'):
             tournament_name = filename.replace('_round_info.json', '')
             metadata = load_round_info(file_path, tournament_name, logger)
             tournaments_data[tournament_name].update(metadata)
+            continue
+        
+        # Handle plain HTML files without suffix (e.g., tournament-name.html in yesterday/leagues)
+        if filename.endswith('.html'):
+            tournament_name = filename.replace('.html', '')
+            # Only process if not already handled (avoid processing files with underscores in names)
+            if tournament_name not in tournaments_data or 'today_html' not in tournaments_data[tournament_name]:
+                html_content, _ = load_html_file(file_path, tournament_name, 'today_html', 'schedule', logger)
+                tournaments_data[tournament_name]['today_html'] = html_content
     
     return tournaments_data
 
