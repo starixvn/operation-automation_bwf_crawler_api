@@ -224,8 +224,6 @@ async def get_yesterday_tournaments():
     
     try:
         yesterday = datetime.now() - timedelta(days=1)
-        # TODO: remove this after testing
-        yesterday = datetime(2025, 10, 28)
         yesterday_date_str = yesterday.strftime("%Y-%m-%d")
         yesterday_json = os.path.join("yesterday", f"{yesterday_date_str}_tournaments.json")
         

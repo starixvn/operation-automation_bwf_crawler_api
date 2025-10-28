@@ -29,8 +29,6 @@ def load_yesterday_tournaments(yesterday_dir: str = "yesterday") -> List[Dict[st
         List of tournament dicts with 'tournament_url' and 'level'
     """
     yesterday = datetime.now() - timedelta(days=1)
-    # TODO: remove this after testing
-    yesterday = datetime(2025, 10, 28)
     date_str = yesterday.strftime("%Y-%m-%d")
     filename = f"{date_str}_tournaments.json"
     filepath = os.path.join(yesterday_dir, filename)
@@ -139,8 +137,6 @@ async def main(
         return
     
     yesterday = datetime.now() - timedelta(days=1)
-    # TODO: remove this after testing
-    yesterday = datetime(2025, 10, 28)
     
     await main_by_date(playwright, yesterday, tournaments, output_dir)
 
