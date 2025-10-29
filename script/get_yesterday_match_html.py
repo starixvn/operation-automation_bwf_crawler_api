@@ -47,7 +47,10 @@ async def scrape_match_by_date(
     url: str,
     level: str,
     target_date: datetime,
-    output_dir: str = "date_matches"
+    output_dir: str = "date_matches",
+    country: str = "",
+    city: str = "",
+    timezone: str = ""
 ) -> bool:
     """
     Scrape match for a single tournament on a specific date
@@ -58,6 +61,9 @@ async def scrape_match_by_date(
         level: Tournament level
         target_date: Target date to scrape
         output_dir: Output directory
+        country: Tournament country
+        city: Tournament city
+        timezone: Tournament IANA timezone
         
     Returns:
         True if successfully scraped, False otherwise
@@ -71,7 +77,7 @@ async def scrape_match_by_date(
             # Check if output_dir is yesterday/leagues - if so, don't use suffix
             use_suffix = "yesterday/leagues" not in output_dir.replace("\\", "/")
             
-            save_match_data(url, level, html, mode_max_round, target_date, output_dir, use_suffix)
+            save_match_data(url, level, html, mode_max_round, target_date, output_dir, use_suffix, country, city, timezone)
             return True
         else:
             return False
@@ -104,12 +110,15 @@ async def main_by_date(
     for tournament in tournament_list:
         url = tournament.get("tournament_url")
         level = tournament.get("level", "")
+        country = tournament.get("country", "")
+        city = tournament.get("city", "")
+        timezone = tournament.get("IANA_timezone", "")
         
         if not url:
             continue
         
         print(f"Scraping: {url}")
-        success = await scrape_match_by_date(playwright, url, level, target_date, output_dir)
+        success = await scrape_match_by_date(playwright, url, level, target_date, output_dir, country, city, timezone)
         
         if success:
             print(f"✓ Successfully scraped: {url}")

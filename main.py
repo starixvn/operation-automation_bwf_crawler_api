@@ -170,17 +170,28 @@ async def scrape_two_days_matches(request: TournamentRequest):
         # Prepare and scrape
         clear_directory(request.output_dir)
         logger.info(f"Cleared output directory: {request.output_dir}")
-        today_date = datetime.now().strftime("%Y-%m-%d")
-        delete_file(os.path.join("yesterday", f"{today_date}_tournaments.json"))
-        logger.info(f"Cleared yesterday's tournaments file: {today_date}_tournaments.json")
+        # today_date = datetime.now().strftime("%Y-%m-%d")
+        # delete_file(os.path.join("yesterday", f"{today_date}_tournaments.json"))
+        # logger.info(f"Cleared yesterday's tournaments file: {today_date}_tournaments.json")
 
         url_strings = [str(t.url) for t in valid_tournaments]
         level_strings = [t.level for t in valid_tournaments]
+        country_strings = [t.country for t in valid_tournaments]
+        city_strings = [t.city for t in valid_tournaments]
+        timezone_strings = [t.IANA_timezone for t in valid_tournaments]
         logger.info(f"Queued {len(url_strings)} tournament(s) for scraping")
         
         logger.info("Launching browser for scraping")
         async with async_playwright() as playwright:
-            await run_two_days(playwright, tournament_list=url_strings, level_list=level_strings, output_dir=request.output_dir)
+            await run_two_days(
+                playwright, 
+                tournament_list=url_strings, 
+                level_list=level_strings,
+                country_list=country_strings,
+                city_list=city_strings,
+                timezone_list=timezone_strings,
+                output_dir=request.output_dir
+            )
 
         # Load and process files
         logger.info("Processing scraped files")
@@ -245,7 +256,10 @@ async def get_yesterday_tournaments():
         tournament_items = [
             TournamentListItem(
                 tournament_url=t.get("tournament_url", ""),
-                level=t.get("level", "")
+                level=t.get("level", ""),
+                country=t.get("country", ""),
+                city=t.get("city", ""),
+                IANA_timezone=t.get("IANA_timezone", "")
             )
             for t in tournaments
         ]

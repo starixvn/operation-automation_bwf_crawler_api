@@ -26,7 +26,7 @@ DEFAULT_TOURNAMENT_LIST = [
 ]
 
 
-def append_base_url(url: str, level: str, output_dir: str = "yesterday") -> None:
+def append_base_url(url: str, level: str, output_dir: str = "yesterday", country: str = "", city: str = "", timezone: str = "") -> None:
     """
     Append a base URL to today's JSON list file when today's tab exists
     
@@ -34,6 +34,9 @@ def append_base_url(url: str, level: str, output_dir: str = "yesterday") -> None
         url: tournament URL to append
         level: tournament level to append
         output_dir: output directory path
+        country: tournament country
+        city: tournament city
+        timezone: tournament IANA timezone
     """
     os.makedirs(output_dir, exist_ok=True)
     
@@ -58,7 +61,10 @@ def append_base_url(url: str, level: str, output_dir: str = "yesterday") -> None
     if tournament_name not in data["tournaments"]:
         data["tournaments"].append({
             "tournament_url": url,
-            "level": level
+            "level": level,
+            "country": country,
+            "city": city,
+            "IANA_timezone": timezone
         })
     else:
         return
@@ -75,7 +81,10 @@ async def scrape_tournament_for_dates(
     url: str,
     level: str,
     dates: List[datetime],
-    output_dir: str = "two_days"
+    output_dir: str = "two_days",
+    country: str = "",
+    city: str = "",
+    timezone: str = ""
 ) -> dict[str, str]:
     """
     Scrape tournament for multiple dates
@@ -145,6 +154,9 @@ async def scrape_tournament_for_dates(
             "league_id": league_id,
             "league_name": league_name,
             "level": level,
+            "country": country,
+            "city": city,
+            "IANA_timezone": timezone,
             "age_category": age_category,
             "mode_max_round": mode_max_round,
             "timestamp": datetime.now().isoformat()
@@ -156,7 +168,7 @@ async def scrape_tournament_for_dates(
         
         # Record URL if today's data exists
         if "today" in results:
-            append_base_url(url, level, "yesterday")
+            append_base_url(url, level, "yesterday", country, city, timezone)
     
     return results
 
@@ -165,7 +177,10 @@ async def run(
     playwright: Playwright,
     url: str,
     level: str,
-    output_dir: str = "two_days"
+    output_dir: str = "two_days",
+    country: str = "",
+    city: str = "",
+    timezone: str = ""
 ) -> None:
     """
     Main process for handling single tournament
@@ -175,6 +190,9 @@ async def run(
         url: tournament URL
         level: tournament level
         output_dir: output directory path
+        country: tournament country
+        city: tournament city
+        timezone: tournament IANA timezone
     """
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
@@ -184,7 +202,10 @@ async def run(
         url,
         level,
         [today, tomorrow],
-        output_dir
+        output_dir,
+        country,
+        city,
+        timezone
     )
 
 
@@ -192,6 +213,9 @@ async def main(
     playwright: Playwright,
     tournament_list: list[str] = None,
     level_list: list[str] = None,
+    country_list: list[str] = None,
+    city_list: list[str] = None,
+    timezone_list: list[str] = None,
     output_dir: str = "two_days"
 ) -> None:
     """
@@ -201,13 +225,31 @@ async def main(
         playwright: Playwright instance
         tournament_list: tournament URL list, use default list if not provided
         level_list: tournament level list, use default list if not provided
+        country_list: tournament country list
+        city_list: tournament city list
+        timezone_list: tournament IANA timezone list
         output_dir: output directory path
     """
     if tournament_list is None:
         tournament_list = DEFAULT_TOURNAMENT_LIST
+    
+    if country_list is None:
+        country_list = [""] * len(tournament_list)
+    if city_list is None:
+        city_list = [""] * len(tournament_list)
+    if timezone_list is None:
+        timezone_list = [""] * len(tournament_list)
 
     for i, url in enumerate(tournament_list):
-        await run(playwright, url, level_list[i], output_dir)
+        await run(
+            playwright, 
+            url, 
+            level_list[i], 
+            output_dir,
+            country_list[i],
+            city_list[i],
+            timezone_list[i]
+        )
 
 
 if __name__ == "__main__":

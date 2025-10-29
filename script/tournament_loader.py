@@ -44,7 +44,7 @@ def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict:
         logger: Optional logger instance
         
     Returns:
-        Dictionary containing tournament_url, league_id, league_name, mode_max_round
+        Dictionary containing tournament_url, league_id, league_name, mode_max_round, country, city, IANA_timezone
     """
     with open(file_path, 'r', encoding='utf-8') as f:
         json_data = json.load(f)
@@ -56,6 +56,9 @@ def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict:
             'league_id': json_data.get('league_id', ''),
             'league_name': json_data.get('league_name', ''),
             'level': json_data.get('level', ''),
+            'country': json_data.get('country', ''),
+            'city': json_data.get('city', ''),
+            'IANA_timezone': json_data.get('IANA_timezone', ''),
             'age_category': json_data.get('age_category', ''),
             'mode_max_round': mode_max_round
         }
@@ -80,6 +83,9 @@ def load_tournament_files(folder: str, logger=None) -> Dict[str, Dict]:
                 tournament_url: str,
                 league_id: str,
                 league_name: str,
+                country: str,
+                city: str,
+                IANA_timezone: str,
                 mode_max_round: dict
             }
         }
@@ -170,6 +176,9 @@ def build_tournament_list(tournaments_data: Dict[str, Dict], logger=None) -> Lis
             league_name=data.get('league_name', ''),
             level=data.get('level', ''),
             age_category=data.get('age_category', ''),
+            country=data.get('country', ''),
+            city=data.get('city', ''),
+            IANA_timezone=data.get('IANA_timezone', ''),
             mode_max_round=mode_max_round,
             today_html=data.get('today_html'),
             tomorrow_html=data.get('tomorrow_html')

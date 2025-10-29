@@ -350,7 +350,10 @@ def save_match_data(
     mode_max_round: dict[str, str],
     target_date: datetime,
     output_dir: str,
-    use_date_suffix: bool = True
+    use_date_suffix: bool = True,
+    country: str = "",
+    city: str = "",
+    timezone: str = ""
 ) -> None:
     """
     Save tournament match data for a specific date
@@ -363,6 +366,9 @@ def save_match_data(
         target_date: Target date
         output_dir: Output directory
         use_date_suffix: Whether to add date suffix to filename
+        country: Tournament country
+        city: Tournament city
+        timezone: Tournament IANA timezone
     """
     os.makedirs(output_dir, exist_ok=True)
     tournament_name = extract_tournament_name(url)
@@ -400,6 +406,9 @@ def save_match_data(
         "league_id": league_id,
         "league_name": league_name,
         "level": level,
+        "country": country,
+        "city": city,
+        "IANA_timezone": timezone,
         "age_category": age_category,
         "mode_max_round": mode_max_round,
         "target_date": target_date.strftime("%Y-%m-%d"),
