@@ -341,6 +341,68 @@ async def fetch_match_html(playwright: Playwright, url: str, target_date: dateti
         return await fetch_html_by_tab(playwright, url, target_date)
 
 
+async def fetch_all_dates_mode_max_round(playwright: Playwright, url: str) -> dict[str, str]:
+    """
+    Fetch mode_max_round by traversing all date tabs from first to last
+    
+    Args:
+        playwright: Playwright instance
+        url: Tournament URL
+        
+    Returns:
+        Dictionary with mode as key and max round (e.g., "R32") as value
+    """
+    mode_max_round = {}
+    browser, context, page = await create_browser_context(playwright)
+    
+    try:
+        await page.goto(url)
+        await initialize_page(page)
+        
+        # Try to get date tabs (works for both regular and worldtour sites)
+        total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
+        
+        if total_dates == 0:
+            print(f"No date tabs found for {url}")
+            return mode_max_round
+        
+        print(f"Found {total_dates} date tabs for {url}")
+        
+        # Traverse each date tab from first to last
+        for i in range(total_dates):
+            try:
+                button = all_date_buttons.nth(i)
+                await button.click(force=True)
+                await page.wait_for_timeout(1500)
+                await switch_to_list_view(page)
+                
+                html = await get_schedule_html(page)
+                
+                if html:
+                    # Find mode_max_round for this date
+                    current_round = find_mode_max_round(html)
+                    
+                    # Update with maximum values
+                    for mode, round_str in current_round.items():
+                        round_num = int(round_str[1:])
+                        if mode not in mode_max_round:
+                            mode_max_round[mode] = round_str
+                        else:
+                            existing_num = int(mode_max_round[mode][1:])
+                            if round_num > existing_num:
+                                mode_max_round[mode] = round_str
+                    
+                    print(f"Date tab {i}: found rounds {current_round}")
+            except Exception as e:
+                print(f"Error processing date tab {i}: {str(e)}")
+                continue
+        
+        return mode_max_round
+    finally:
+        await context.close()
+        await browser.close()
+
+
 # ==================== Data Saving ====================
 
 def save_match_data(

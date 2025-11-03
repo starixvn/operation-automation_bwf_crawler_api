@@ -13,7 +13,7 @@ from playwright.async_api import Playwright, async_playwright
 from script.get_match_html import (
     extract_tournament_name,
     fetch_match_html,
-    find_mode_max_round
+    fetch_all_dates_mode_max_round
 )
 
 DEFAULT_TOURNAMENT_LIST = [
@@ -100,8 +100,16 @@ async def scrape_tournament_for_dates(
         dict with date labels as keys and HTML as values
     """
     results = {}
-    mode_max_round = {}
     
+    # Fetch mode_max_round by traversing all date tabs from first to last
+    try:
+        mode_max_round = await fetch_all_dates_mode_max_round(playwright, url)
+        print(f"Found mode_max_round from all dates: {mode_max_round}")
+    except Exception as e:
+        print(f"Error fetching mode_max_round from all dates: {str(e)}")
+        mode_max_round = {}
+    
+    # Fetch HTML for specified dates (today and tomorrow)
     for i, date in enumerate(dates):
         date_label = "today" if i == 0 else "tomorrow"
         
@@ -110,17 +118,6 @@ async def scrape_tournament_for_dates(
             
             if html:
                 results[date_label] = html
-                
-                # Update mode_max_round with maximum values
-                current_round = find_mode_max_round(html)
-                for mode, round_str in current_round.items():
-                    round_num = int(round_str[1:])
-                    if mode not in mode_max_round:
-                        mode_max_round[mode] = round_str
-                    else:
-                        existing_num = int(mode_max_round[mode][1:])
-                        if round_num > existing_num:
-                            mode_max_round[mode] = round_str
         except Exception as e:
             print(f"Error scraping {url} for {date_label}: {str(e)}")
     
