@@ -115,8 +115,11 @@ def find_mode_max_round(html: str) -> dict[str, str]:
         if len(labels) < 2:
             continue
             
-        mode = labels[0].strip()
+        mode_raw = labels[0].strip()
         round_label = labels[1].strip()
+        
+        # Extract base mode (e.g., "MS-U19" -> "MS", "WS" -> "WS")
+        mode = mode_raw.split('-')[0] if '-' in mode_raw else mode_raw
         
         if mode not in valid_modes:
             continue
