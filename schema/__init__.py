@@ -5,6 +5,9 @@ from .schema import (
     TournamentData,
     ScrapeResponse,
     TwoDaysResponse,
+    DateTournamentRequest,
+    TournamentListItem,
+    TournamentListResponse,
 )
 
 __all__ = [
@@ -12,5 +15,8 @@ __all__ = [
     "TournamentData",
     "ScrapeResponse",
     "TwoDaysResponse",
+    "DateTournamentRequest",
+    "TournamentListItem",
+    "TournamentListResponse",
 ]
 

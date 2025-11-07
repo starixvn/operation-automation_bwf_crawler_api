@@ -52,14 +52,16 @@ class TestTournamentData:
             "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test-2025",
             "league_id": "test-2025",
             "league_name": "Test Tournament",
-            "max_round": "R32",
+            "level": "BWF Tour Super 100",
+            "age_category": "Adults",
+            "mode_max_round": {"MS": "R32", "WS": "R16"},
             "today_html": "<html>Today</html>",
             "tomorrow_html": "<html>Tomorrow</html>"
         }
         tournament = TournamentData(**data)
         assert tournament.league_id == "test-2025"
         assert tournament.league_name == "Test Tournament"
-        assert tournament.max_round == "R32"
+        assert tournament.mode_max_round == {"MS": "R32", "WS": "R16"}
         assert tournament.today_html == "<html>Today</html>"
     
     def test_tournament_data_with_none_values(self):
@@ -67,10 +69,12 @@ class TestTournamentData:
         data = {
             "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test",
             "league_id": "test",
-            "league_name": "Test"
+            "league_name": "Test",
+            "level": "Test Level",
+            "age_category": "Adults"
         }
         tournament = TournamentData(**data)
-        assert tournament.max_round is None
+        assert tournament.mode_max_round is None
         assert tournament.today_html is None
         assert tournament.tomorrow_html is None
     
@@ -125,7 +129,9 @@ class TestTwoDaysResponse:
                     "tournament_url": "https://bwf.tournamentsoftware.com/sport/tournament?id=test",
                     "league_id": "test",
                     "league_name": "Test Tournament",
-                    "max_round": "R32",
+                    "level": "BWF Tour Super 100",
+                    "age_category": "Adults",
+                    "mode_max_round": {"MS": "R32", "WS": "R16"},
                     "today_html": "<html>Today</html>",
                     "tomorrow_html": "<html>Tomorrow</html>"
                 }

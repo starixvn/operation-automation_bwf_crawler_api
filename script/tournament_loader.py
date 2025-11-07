@@ -34,7 +34,7 @@ def load_html_file(file_path: str, tournament_name: str, data_key: str, log_labe
         return html_content, file_size
 
 
-def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict[str, str]:
+def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict:
     """
     Load round_info.json and return tournament metadata
     
@@ -44,19 +44,23 @@ def load_round_info(file_path: str, tournament_name: str, logger=None) -> Dict[s
         logger: Optional logger instance
         
     Returns:
-        Dictionary containing tournament_url, league_id, league_name, max_round
+        Dictionary containing tournament_url, league_id, league_name, mode_max_round, country, city, IANA_timezone
     """
     with open(file_path, 'r', encoding='utf-8') as f:
         json_data = json.load(f)
+        mode_max_round = json_data.get('mode_max_round', {})
         if logger:
-            logger.info(f"  {tournament_name}: max_round={json_data.get('max_round')}")
+            logger.info(f"  {tournament_name}: mode_max_round={mode_max_round}")
         return {
             'tournament_url': json_data.get('tournament_url', ''),
             'league_id': json_data.get('league_id', ''),
             'league_name': json_data.get('league_name', ''),
             'level': json_data.get('level', ''),
+            'country': json_data.get('country', ''),
+            'city': json_data.get('city', ''),
+            'IANA_timezone': json_data.get('IANA_timezone', ''),
             'age_category': json_data.get('age_category', ''),
-            'max_round': json_data.get('max_round')
+            'mode_max_round': mode_max_round
         }
 
 
@@ -79,7 +83,10 @@ def load_tournament_files(folder: str, logger=None) -> Dict[str, Dict]:
                 tournament_url: str,
                 league_id: str,
                 league_name: str,
-                max_round: str
+                country: str,
+                city: str,
+                IANA_timezone: str,
+                mode_max_round: dict
             }
         }
     """
@@ -91,22 +98,49 @@ def load_tournament_files(folder: str, logger=None) -> Dict[str, Dict]:
         '_tomorrow.html': ('tomorrow_html', 'tomorrow schedule'),
     }
     
+    # Pattern for date-specific files (e.g., tournament-name_2025-10-28.html)
+    import re
+    date_pattern = re.compile(r'_(\d{4}-\d{2}-\d{2})\.html$')
+    
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
         
-        # Handle HTML files
+        # Handle HTML files with specific date (e.g., tournament-name_2025-10-28.html)
+        date_match = date_pattern.search(filename)
+        if date_match and filename.endswith('.html'):
+            date_str = date_match.group(1)
+            tournament_name = filename[:date_match.start()]
+            html_content, _ = load_html_file(file_path, tournament_name, 'today_html', f'{date_str} schedule', logger)
+            tournaments_data[tournament_name]['today_html'] = html_content
+            continue
+        
+        # Handle HTML files with standard suffixes
+        handled = False
         for suffix, (data_key, log_label) in file_handlers.items():
             if filename.endswith(suffix):
                 tournament_name = filename.replace(suffix, '')
                 html_content, _ = load_html_file(file_path, tournament_name, data_key, log_label, logger)
                 tournaments_data[tournament_name][data_key] = html_content
+                handled = True
                 break
+        
+        if handled:
+            continue
         
         # Handle round_info.json
         if filename.endswith('_round_info.json'):
             tournament_name = filename.replace('_round_info.json', '')
             metadata = load_round_info(file_path, tournament_name, logger)
             tournaments_data[tournament_name].update(metadata)
+            continue
+        
+        # Handle plain HTML files without suffix (e.g., tournament-name.html in yesterday/leagues)
+        if filename.endswith('.html'):
+            tournament_name = filename.replace('.html', '')
+            # Only process if not already handled (avoid processing files with underscores in names)
+            if tournament_name not in tournaments_data or 'today_html' not in tournaments_data[tournament_name]:
+                html_content, _ = load_html_file(file_path, tournament_name, 'today_html', 'schedule', logger)
+                tournaments_data[tournament_name]['today_html'] = html_content
     
     return tournaments_data
 
@@ -127,12 +161,13 @@ def build_tournament_list(tournaments_data: Dict[str, Dict], logger=None) -> Lis
     for tournament_name, data in tournaments_data.items():
         has_today = 'today_html' in data
         has_tomorrow = 'tomorrow_html' in data
+        mode_max_round = data.get('mode_max_round', {})
         
         if logger:
             logger.info(
                 f"Tournament {tournament_name} ({data.get('league_name', 'N/A')}, "
                 f"ID: {data.get('league_id', 'N/A')}): "
-                f"today={has_today}, tomorrow={has_tomorrow}, max_round={data.get('max_round', 'N/A')}"
+                f"today={has_today}, tomorrow={has_tomorrow}, mode_max_round={mode_max_round}"
             )
         
         tournaments.append(TournamentData(
@@ -141,7 +176,10 @@ def build_tournament_list(tournaments_data: Dict[str, Dict], logger=None) -> Lis
             league_name=data.get('league_name', ''),
             level=data.get('level', ''),
             age_category=data.get('age_category', ''),
-            max_round=data.get('max_round'),
+            country=data.get('country', ''),
+            city=data.get('city', ''),
+            IANA_timezone=data.get('IANA_timezone', ''),
+            mode_max_round=mode_max_round,
             today_html=data.get('today_html'),
             tomorrow_html=data.get('tomorrow_html')
         ))

@@ -19,3 +19,9 @@ def clear_directory(directory: str) -> None:
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
 
+def delete_file(file_path: str) -> None:
+    """Delete a file"""
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return
+

@@ -39,8 +39,8 @@ def should_exclude_tournament(tournament: TournamentInput) -> bool:
         return True
     
     # Skip if level is in excluded list (case insensitive comparison)
-    if any(tournament.level.lower() == excluded.lower() for excluded in EXCLUDED_LEVELS):
-        return True
+    # if any(tournament.level.lower() == excluded.lower() for excluded in EXCLUDED_LEVELS):
+    #     return True
     
     return False
 
