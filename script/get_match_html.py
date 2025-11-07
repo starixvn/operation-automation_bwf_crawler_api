@@ -162,7 +162,7 @@ async def switch_to_list_view(page: Page) -> None:
 async def initialize_page(page: Page) -> None:
     """Initialize page: close popup, wait, switch to List View"""
     await close_popup_if_exists(page)
-    await page.wait_for_timeout(2000)
+    await page.wait_for_timeout(3000)
     await switch_to_list_view(page)
 
 
@@ -274,7 +274,7 @@ async def fetch_html_by_url(playwright: Playwright, url: str, target_date: datet
     
     try:
         target_url = get_date_url(url, target_date)
-        await page.goto(target_url)
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=5000)
         await initialize_page(page)
         
         html = await get_schedule_html(page)
@@ -290,7 +290,7 @@ async def fetch_html_by_tab(playwright: Playwright, url: str, target_date: datet
     browser, context, page = await create_browser_context(playwright)
     
     try:
-        await page.goto(url)
+        await page.goto(url, wait_until="domcontentloaded", timeout=5000)
         await initialize_page(page)
         
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
@@ -313,7 +313,7 @@ async def fetch_html_by_tab(playwright: Playwright, url: str, target_date: datet
         
         button = all_date_buttons.nth(target_date_index)
         await button.click(force=True)
-        await page.wait_for_timeout(1500)
+        await page.wait_for_timeout(2500)
         await switch_to_list_view(page)
         
         html = await get_schedule_html(page)
@@ -359,14 +359,20 @@ async def fetch_all_dates_mode_max_round(playwright: Playwright, url: str) -> di
     browser, context, page = await create_browser_context(playwright)
     
     try:
-        await page.goto(url)
+        await page.goto(url, wait_until="domcontentloaded", timeout=5000)
         await initialize_page(page)
         
         # Try to get date tabs (works for both regular and worldtour sites)
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
         
         if total_dates == 0:
-            print(f"No date tabs found for {url}")
+            print(f"No date tabs found for {url}, trying to get mode_max_round from current page")
+            # If no date tabs, try to get HTML from current page
+            await switch_to_list_view(page)
+            html = await get_schedule_html(page)
+            if html:
+                mode_max_round = find_mode_max_round(html)
+                print(f"Found mode_max_round from current page: {mode_max_round}")
             return mode_max_round
         
         print(f"Found {total_dates} date tabs for {url}")
@@ -376,7 +382,7 @@ async def fetch_all_dates_mode_max_round(playwright: Playwright, url: str) -> di
             try:
                 button = all_date_buttons.nth(i)
                 await button.click(force=True)
-                await page.wait_for_timeout(1500)
+                await page.wait_for_timeout(2500)
                 await switch_to_list_view(page)
                 
                 html = await get_schedule_html(page)
