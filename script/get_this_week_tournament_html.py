@@ -26,10 +26,10 @@ async def run(playwright: Playwright) -> None:
         });
     """)
     await page.goto("https://bwfbadminton.com/calendar/", wait_until="domcontentloaded", timeout=5000)
-    # await page.get_by_role("button", name="Close").click(timeout=5000)
     # 等待並關閉 Cookie 同意對話框（如果存在）
     try:
-        await page.locator("#cookiescript_accept").click(timeout=5000)
+        await page.get_by_role("button", name="Close").click(timeout=5000)
+        # await page.locator("#cookiescript_accept").click(timeout=5000)
         print("已關閉 Cookie 對話框")
         await page.wait_for_timeout(1000)  # 等待對話框消失
     except Exception as e:
