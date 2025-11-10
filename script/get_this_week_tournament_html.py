@@ -3,6 +3,7 @@ import re
 import os
 import shutil
 import asyncio
+import json
 from playwright.async_api import Playwright, async_playwright
 
 
@@ -13,11 +14,28 @@ async def run(playwright: Playwright) -> None:
         headless=True,
         args=['--disable-blink-features=AutomationControlled']
     )
+    
+    # Get cookies from JSON file
+    cookie_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'BWF_cookies.json')
+    cookies_data = None
+    if os.path.exists(cookie_file):
+        with open(cookie_file, 'r', encoding='utf-8') as f:
+            cookies_data = json.load(f)
+        print(f"Loaded {len(cookies_data)} cookies from {cookie_file}")
+    else:
+        print(f"Cookie file not found: {cookie_file}")
+    
     context = await browser.new_context(
         user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         viewport={'width': 1920, 'height': 1080},
         locale='en-US'
     )
+    
+    # Add cookies to browser cookie store
+    if cookies_data:
+        await context.add_cookies(cookies_data)
+        print("Added cookies to browser")
+    
     page = await context.new_page()
     # Hide webdriver features
     await page.add_init_script("""
@@ -26,14 +44,14 @@ async def run(playwright: Playwright) -> None:
         });
     """)
     await page.goto("https://bwfbadminton.com/calendar/", wait_until="domcontentloaded", timeout=5000)
-    # 等待並關閉 Cookie 同意對話框（如果存在）
+    # Wait and close Cookie consent dialog (if exists)
     try:
         await page.get_by_role("button", name="Close").click(timeout=5000)
         # await page.locator("#cookiescript_accept").click(timeout=5000)
-        print("已關閉 Cookie 對話框")
+        print("Closed Cookie consent dialog")
         await page.wait_for_timeout(1000)  # 等待對話框消失
     except Exception as e:
-        print(f"無 Cookie 對話框需要關閉或已自動關閉: {e}")
+        print(f"No Cookie consent dialog to close or already closed: {e}")
     
     await page.get_by_role("link", name="THIS WEEK").click()
     await page.wait_for_timeout(3000)

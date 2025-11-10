@@ -146,7 +146,9 @@ async def close_popup_if_exists(page: Page) -> None:
     """Close popup window if exists"""
     try:
         await page.get_by_role("button", name="Close").click()
+        print("Closed popup window")
     except Exception:
+        print("No popup window to close")
         pass
 
 
@@ -251,11 +253,26 @@ async def create_browser_context(playwright: Playwright):
         headless=True,
         args=['--disable-blink-features=AutomationControlled']
     )
+    
+    # Get cookies from JSON file
+    cookie_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'BWF_cookies.json')
+    cookies_data = None
+    if os.path.exists(cookie_file):
+        with open(cookie_file, 'r', encoding='utf-8') as f:
+            cookies_data = json.load(f)
+        print(f"Loaded {len(cookies_data)} cookies from {cookie_file}")
+    
     context = await browser.new_context(
         user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         viewport={'width': 1920, 'height': 1080},
         locale='en-US'
     )
+    
+    # Add cookies to browser cookie store
+    if cookies_data:
+        await context.add_cookies(cookies_data)
+        print("Added cookies to browser")
+    
     page = await context.new_page()
     
     # Hide webdriver features
