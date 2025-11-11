@@ -7,9 +7,9 @@ A FastAPI-based web scraper for extracting Badminton World Federation (BWF) tour
 - **This Week's Tournaments** - Scrape paginated list of current week tournaments
 - **Two-Day Schedules** - Extract today and tomorrow match schedules for specific tournaments
 - **Docker Support** - Containerized deployment with Docker Compose
-- **HTML Compression** - Gzip + Base64 encoding to reduce response payload size
 - **Anti-Detection** - Browser automation with webdriver concealment
 - **Dual-Site Support** - Handles both regular BWF and BWF World Tour website formats
+- **Automatic Filtering** - Excludes para-badminton and lower-tier tournaments
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ A FastAPI-based web scraper for extracting Badminton World Federation (BWF) tour
 
 ```bash
 # Build and start the service
-docker compose up -d
+docker compose up -d --build
 
 # View logs
 docker compose logs -f
@@ -26,24 +26,14 @@ docker compose logs -f
 docker compose down
 ```
 
-The API will be available at `http://localhost:8000`
+The API will be available at:
+- **Local**: `http://localhost:8080`
+- **Network**: `http://<SERVER_IP>:8080` (replace `<SERVER_IP>` with your server's IP address)
+- **Example**: `http://192.168.1.100:8080` or `http://your-domain.com:8080`
 
-### Option 2: Docker
+> **Note**: Docker Compose maps container port 8000 to host port 8080. If you need to use port 8000, modify the `ports` section in `docker-compose.yml` to `"8000:8000"`.
 
-```bash
-# Build the image
-docker build -t badminton-api .
-
-# Run the container
-docker run -d \
-  -p 8000:8000 \
-  -v $(pwd)/two_days:/app/two_days \
-  -v $(pwd)/this_week:/app/this_week \
-  --name badminton-api \
-  badminton-api
-```
-
-### Option 3: Local Development
+### Option 2: Local Development
 
 ```bash
 # Install dependencies
@@ -56,12 +46,33 @@ python main.py
 uvicorn main:app --reload
 ```
 
+The API will be available at:
+- **Local**: `http://localhost:8000`
+- **Network**: `http://<SERVER_IP>:8000`
+
+> **Note**: Local development uses port 8000 by default.
+
 ## API Documentation
 
 Once running, access the interactive API documentation:
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+### When using Docker Compose:
+- **Swagger UI**: 
+  - Local: http://localhost:8080/docs
+  - Network: http://`<SERVER_IP>`:8080/docs
+- **ReDoc**: 
+  - Local: http://localhost:8080/redoc
+  - Network: http://`<SERVER_IP>`:8080/redoc
+
+### When using Local Development:
+- **Swagger UI**: 
+  - Local: http://localhost:8000/docs
+  - Network: http://`<SERVER_IP>`:8000/docs
+- **ReDoc**: 
+  - Local: http://localhost:8000/redoc
+  - Network: http://`<SERVER_IP>`:8000/redoc
+
+Replace `<SERVER_IP>` with your server's actual IP address (e.g., `192.168.1.100` or `your-domain.com`)
 
 ### Endpoints
 
@@ -72,6 +83,14 @@ GET /health
 ```
 
 Returns server health status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-11-11T10:30:00.123456"
+}
+```
 
 #### Get This Week's Tournaments
 
@@ -86,13 +105,11 @@ Scrapes the current week's tournament list from BWF calendar.
 {
   "status": "success",
   "message": "Successfully scraped this week's tournaments, total 3 files",
-  "timestamp": "2025-10-08T10:30:00.123456",
+  "timestamp": "2025-11-11T10:30:00.123456",
   "output_dir": "this_week",
   "files": {
-    "page_1.html": {
-      "compressed": true,
-      "data": "H4sIAAAAAAAA..."
-    }
+    "page_1.html": "<html>...</html>",
+    "page_2.html": "<html>...</html>"
   }
 }
 ```
@@ -108,8 +125,14 @@ Scrapes today and tomorrow schedules for specified tournament URLs.
 **Request Body:**
 ```json
 {
-  "urls": [
-    "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/"
+  "tournaments": [
+    {
+      "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+      "level": "World Tour Super 750",
+      "country": "Finland",
+      "city": "Vantaa",
+      "IANA_timezone": "Europe/Helsinki"
+    }
   ],
   "output_dir": "two_days"
 }
@@ -124,19 +147,21 @@ Scrapes today and tomorrow schedules for specified tournament URLs.
     {
       "tournament_url": "https://...",
       "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex",
+      "league_id": "5287",
+      "league_name": "Clash of Clans Arctic Open 2025",
       "max_round": "R32",
-      "today_html": {
-        "compressed": true,
-        "data": "H4sIAAAAAAAA..."
-      },
-      "tomorrow_html": {
-        "compressed": true,
-        "data": "H4sIAAAAAAAA..."
-      }
+      "today_html": "<html>...</html>",
+      "tomorrow_html": "<html>...</html>"
     }
   ]
 }
 ```
+
+**Filtering Rules:**
+
+The following tournament types are automatically excluded:
+- Para-badminton tournaments (level contains "para")
+
 
 ## Usage Examples
 
@@ -144,49 +169,72 @@ Scrapes today and tomorrow schedules for specified tournament URLs.
 
 ```python
 import requests
-import gzip
-import base64
 
-BASE_URL = "http://localhost:8000"
+# For Docker Compose deployment (default port 8080)
+BASE_URL = "http://localhost:8080"
+# BASE_URL = "http://192.168.1.100:8080"  # Network access
+# BASE_URL = "http://your-domain.com:8080"
+
+# For Local Development (default port 8000)
+# BASE_URL = "http://localhost:8000"
+# BASE_URL = "http://192.168.1.100:8000"  # Network access
 
 # Get this week's tournaments
 response = requests.get(f"{BASE_URL}/this-week-tournaments")
 data = response.json()
-
-if data["status"] == "success":
-    # Decompress HTML
-    for filename, content in data["files"].items():
-        compressed_data = base64.b64decode(content["data"])
-        html = gzip.decompress(compressed_data).decode('utf-8')
-        print(f"{filename}: {len(html)} characters")
+print(f"Status: {data['status']}")
+print(f"Files: {len(data['files'])}")
 
 # Get two-day schedules
 payload = {
-    "urls": [
-        "https://bwfbadminton.com/tournament/5263/yonex-sunrise-bwf-world-junior-mixed-team-championships-2025"
-    ]
+    "tournaments": [
+        {
+            "url": "https://bwfbadminton.com/tournament/5263/yonex-sunrise-bwf-world-junior-mixed-team-championships-2025",
+            "level": "World Junior Championships",
+            "country": "China",
+            "city": "Nanjing",
+            "IANA_timezone": "Asia/Shanghai"
+        }
+    ],
+    "output_dir": "two_days"
 }
 response = requests.post(f"{BASE_URL}/two-days-matches", json=payload)
 data = response.json()
 
 for tournament in data["tournaments"]:
-    print(f"Tournament: {tournament['tournament_name']}")
+    print(f"Tournament: {tournament['league_name']}")
     print(f"Max Round: {tournament['max_round']}")
 ```
 
 ### cURL Examples
 
 ```bash
-# Get this week's tournaments
-curl http://localhost:8000/this-week-tournaments
+# Note: Use port 8080 for Docker Compose, port 8000 for local development
+# Replace localhost with your server's IP address for network access
 
-# Get two-day schedules
-curl -X POST "http://localhost:8000/two-days-matches" \
+# Health check (Docker Compose)
+curl http://localhost:8080/health
+
+# Health check (Local Development)
+# curl http://localhost:8000/health
+
+# Get this week's tournaments (Docker Compose)
+curl http://localhost:8080/this-week-tournaments
+
+# Get two-day schedules (Docker Compose)
+curl -X POST "http://localhost:8080/two-days-matches" \
   -H "Content-Type: application/json" \
   -d '{
-    "urls": [
-      "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/"
-    ]
+    "tournaments": [
+      {
+        "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+        "level": "World Tour Super 750",
+        "country": "Finland",
+        "city": "Vantaa",
+        "IANA_timezone": "Europe/Helsinki"
+      }
+    ],
+    "output_dir": "two_days"
   }'
 ```
 
@@ -213,13 +261,16 @@ bwf_crawler_api/
 ├── requirements.txt                       # Python dependencies
 ├── Dockerfile                             # Docker image configuration
 ├── docker-compose.yml                     # Docker Compose setup
+├── BWF_cookies.json                       # Browser cookies for BWF sites
 ├── schema/                                # Pydantic models
 │   ├── __init__.py
 │   └── schema.py                          # API request/response models
 ├── script/                                # Scraper scripts
 │   ├── __init__.py
 │   ├── get_this_week_tournament_html.py  # Weekly tournament scraper
-│   └── get_two_days_match_html.py        # Two-day schedule scraper
+│   ├── get_two_days_match_html.py        # Two-day schedule scraper
+│   ├── tournament_loader.py              # Tournament data loader
+│   └── tournament_filter.py              # Tournament filtering logic
 ├── utils/                                 # Utility functions
 │   ├── __init__.py
 │   ├── file_utils.py                     # File operations
@@ -254,46 +305,53 @@ The scraper automatically detects the site type and uses the appropriate navigat
 - Uses Playwright with Chromium
 - Headless mode with anti-detection measures
 - Custom user agent to mimic regular browser
+- Cookie-based authentication for BWF sites
 - Automatic popup/dialog dismissal
 - Waits for dynamic content to load before extraction
 
-### Data Compression
+### Tournament Filtering
 
-All HTML responses are compressed to reduce payload size:
-1. HTML content is gzipped
-2. Compressed data is base64-encoded
-3. Response includes `{"compressed": true, "data": "..."}`
+The API automatically filters out unwanted tournaments based on the `level` field:
 
-## Troubleshooting
+**Excluded Levels:**
+- Empty or null level
+- Contains "para" (para-badminton)
+- "International Series"
+- "International Challenge"
+- "Junior International Series"
+- "Junior Tournament"
 
-### Port Already in Use
+**Included Levels:**
+- World Tour Super Series (100, 300, 500, 750, 1000)
+- BWF World Championships
+- Continental Championships
+- Other major tournaments
 
-Check if port 8000 is occupied:
-```bash
-lsof -i :8000
+### Data Schema
+
+#### Tournament Input
+```json
+{
+  "url": "string (required)",
+  "level": "string (required)",
+  "country": "string (optional)",
+  "city": "string (optional)",
+  "IANA_timezone": "string (optional)"
+}
 ```
 
-Change the port in `docker-compose.yml`:
-```yaml
-ports:
-  - "8080:8000"  # Use 8080 instead
+#### Tournament Output
+```json
+{
+  "tournament_url": "string",
+  "tournament_name": "string",
+  "league_id": "string",
+  "league_name": "string",
+  "max_round": "string",
+  "today_html": "string (HTML content)",
+  "tomorrow_html": "string or null (HTML content)"
+}
 ```
-
-### Playwright Browser Issues
-
-If running locally, ensure Chromium is installed:
-```bash
-playwright install chromium
-```
-
-For Docker, the browser is pre-installed in the image.
-
-### Timeout Errors
-
-The API has a 600-second timeout for long-running scrapes. If you encounter timeouts:
-- Check your internet connection
-- Verify the tournament URLs are accessible
-- Check container logs: `docker compose logs -f`
 
 ## Logging
 
@@ -322,7 +380,7 @@ docker compose exec badminton-api tail -f /app/logs/api.log
 grep "ERROR" logs/api.log
 
 # View specific day's logs
-cat logs/api.log.2025-10-13
+cat logs/api.log.2025-11-09
 ```
 
 ### What Gets Logged
@@ -334,6 +392,7 @@ cat logs/api.log.2025-10-13
 - File sizes (not content)
 - Processing duration
 - Tournament names and URLs
+- Filtering statistics
 - Error messages with stack traces
 
 **❌ NOT Logged:**
@@ -352,15 +411,68 @@ cat logs/api.log.2025-10-13
 
 ```
 ============================================================
-2025-10-13 10:00:00 - main - INFO - Starting this week tournaments scraping
-2025-10-13 10:00:01 - main - INFO - Cleared output directory: this_week
-2025-10-13 10:00:02 - main - INFO - Launching browser for scraping
-2025-10-13 10:00:10 - main - INFO - Scraped file: page_1.html (size: 12,345 bytes)
-2025-10-13 10:00:12 - main - INFO - Successfully scraped 3 tournament files in 12.34s
+2025-11-11 10:00:00 - main - INFO - Starting this week tournaments scraping
+2025-11-11 10:00:01 - main - INFO - Cleared output directory: this_week
+2025-11-11 10:00:02 - main - INFO - Launching browser for scraping
+2025-11-11 10:00:10 - main - INFO - Scraped file: page_1.html (size: 12,345 bytes)
+2025-11-11 10:00:12 - main - INFO - Successfully scraped 3 tournament files in 12.34s
 ============================================================
 ```
 
 For more details, see [logs/README.md](logs/README.md)
+
+## Troubleshooting
+
+### Port Already in Use
+
+**For Docker Compose (default port 8080):**
+
+Check if port 8080 is occupied:
+```bash
+lsof -i :8080
+```
+
+If port 8080 is in use, change the host port in `docker-compose.yml`:
+```yaml
+ports:
+  - "9000:8000"  # Map to port 9000 instead
+```
+
+**For Local Development (default port 8000):**
+
+Check if port 8000 is occupied:
+```bash
+lsof -i :8000
+```
+
+Change the port when starting the server:
+```bash
+uvicorn main:app --host 0.0.0.0 --port 9000
+```
+
+### Playwright Browser Issues
+
+If running locally, ensure Chromium is installed:
+```bash
+playwright install chromium
+```
+
+For Docker, the browser is pre-installed in the image.
+
+### Timeout Errors
+
+The API has a 600-second timeout for long-running scrapes. If you encounter timeouts:
+- Check your internet connection
+- Verify the tournament URLs are accessible
+- Check container logs: `docker compose logs -f`
+
+### Cookie Authentication Issues
+
+If you encounter authentication errors, update the `BWF_cookies.json` file with valid cookies from your browser:
+1. Open BWF website in your browser
+2. Open Developer Tools (F12)
+3. Go to Application > Cookies
+4. Copy the cookies to `BWF_cookies.json`
 
 ## Development
 
@@ -411,6 +523,8 @@ The codebase is structured for easy extension:
        # Your implementation
        pass
    ```
+3. **New schema** - Add Pydantic models in `schema/schema.py`
+4. **New filter** - Add filter logic in `script/tournament_filter.py`
 
 ## Limitations
 
@@ -418,6 +532,17 @@ The codebase is structured for easy extension:
 - Para-badminton tournaments are automatically skipped
 - Requires stable internet connection for scraping
 - Scraping operations are synchronous (blocking)
+- Cookie authentication may expire and require manual update
+
+## Dependencies
+
+- **FastAPI**: Modern web framework for building APIs
+- **Uvicorn**: ASGI server for FastAPI
+- **Playwright**: Browser automation library
+- **Pydantic**: Data validation using Python type annotations
+- **Unidecode**: Unicode text to ASCII transliteration
+
+For complete list, see [requirements.txt](requirements.txt)
 
 ## License
 
