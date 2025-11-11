@@ -482,7 +482,31 @@ If you encounter authentication errors or the cookies have expired, update the `
    - `CookieScriptConsent` - Cookie consent tracking
    - `laravel_session` - Session authentication
    - `cf_clearance` - Cloudflare clearance token
-5. Update the corresponding values in `BWF_cookies.json`
+5. Update the corresponding values in `BWF_cookies.json` following this format:
+
+```json
+[
+  {
+    "name": "CookieScriptConsent",
+    "value": "YOUR_COOKIE_VALUE_HERE",
+    "domain": ".bwfbadminton.com",
+    "path": "/"
+  },
+  {
+    "name": "laravel_session",
+    "value": "YOUR_COOKIE_VALUE_HERE",
+    "domain": ".bwfbadminton.com",
+    "path": "/"
+  },
+  {
+    "name": "cf_clearance",
+    "value": "YOUR_COOKIE_VALUE_HERE",
+    "domain": ".bwfbadminton.com",
+    "path": "/"
+  }
+]
+```
+
 6. Restart the API service: `docker compose restart` or restart the local server
 
 ## Development
