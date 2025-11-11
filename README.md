@@ -468,11 +468,22 @@ The API has a 600-second timeout for long-running scrapes. If you encounter time
 
 ### Cookie Authentication Issues
 
-If you encounter authentication errors, update the `BWF_cookies.json` file with valid cookies from your browser:
-1. Open BWF website in your browser
+**Important**: BWF cookies need to be updated **monthly** to maintain authentication.
+
+- **Current Update**: November 10, 2025
+- **Next Update Due**: Before December 09, 2025
+
+If you encounter authentication errors or the cookies have expired, update the `BWF_cookies.json` file with valid cookies from your browser:
+
+1. Open BWF website in your browser (https://bwfbadminton.com/)
 2. Open Developer Tools (F12)
-3. Go to Application > Cookies
-4. Copy the cookies to `BWF_cookies.json`
+3. Go to **Application** > **Cookies** > https://bwfbadminton.com
+4. Copy the following **3 cookies** and update them in `BWF_cookies.json`:
+   - `CookieScriptConsent` - Cookie consent tracking
+   - `laravel_session` - Session authentication
+   - `cf_clearance` - Cloudflare clearance token
+5. Update the corresponding values in `BWF_cookies.json`
+6. Restart the API service: `docker compose restart` or restart the local server
 
 ## Development
 
