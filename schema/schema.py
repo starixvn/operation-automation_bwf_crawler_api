@@ -8,6 +8,7 @@ from typing import List, Optional
 
 class TournamentInput(BaseModel):
     """Single tournament input with URL and level"""
+    tournament_name: str
     url: HttpUrl
     level: str = ""  # Tournament level/category
     country: str = ""  # Tournament country

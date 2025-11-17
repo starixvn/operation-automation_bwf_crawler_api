@@ -7,6 +7,7 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from typing import List
+from unidecode import unidecode
 from playwright.async_api import Playwright, async_playwright
 
 # Import shared functions
@@ -79,6 +80,7 @@ def append_base_url(url: str, level: str, output_dir: str = "yesterday", country
 async def scrape_tournament_for_dates(
     playwright: Playwright,
     url: str,
+    tournament_name: str,
     level: str,
     dates: List[datetime],
     output_dir: str = "two_days",
@@ -92,6 +94,7 @@ async def scrape_tournament_for_dates(
     Args:
         playwright: Playwright instance
         url: Tournament URL
+        tournament_name: Tournament name
         level: Tournament level
         dates: List of dates to scrape
         output_dir: Output directory
@@ -124,11 +127,10 @@ async def scrape_tournament_for_dates(
     # Save the results
     if results:
         # Save HTML files
-        tournament_name = extract_tournament_name(url)
+        # Use provided tournament_name if available, otherwise extract from URL
+        tournament_name = extract_tournament_name(url, tournament_name)
         os.makedirs(output_dir, exist_ok=True)
-        
-        from unidecode import unidecode
-        
+
         if "today" in results:
             today_file = os.path.join(output_dir, f"{tournament_name}_today.html")
             with open(today_file, "w", encoding="utf-8") as f:
@@ -177,7 +179,8 @@ async def run(
     output_dir: str = "two_days",
     country: str = "",
     city: str = "",
-    timezone: str = ""
+    timezone: str = "",
+    tournament_name: str = ""
 ) -> None:
     """
     Main process for handling single tournament
@@ -190,6 +193,7 @@ async def run(
         country: tournament country
         city: tournament city
         timezone: tournament IANA timezone
+        tournament_name: tournament name
     """
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
@@ -197,6 +201,7 @@ async def run(
     await scrape_tournament_for_dates(
         playwright,
         url,
+        tournament_name,
         level,
         [today, tomorrow],
         output_dir,
@@ -209,6 +214,7 @@ async def run(
 async def main(
     playwright: Playwright,
     tournament_list: list[str] = None,
+    tournament_name_list: list[str] = None,
     level_list: list[str] = None,
     country_list: list[str] = None,
     city_list: list[str] = None,
@@ -221,6 +227,7 @@ async def main(
     Args:
         playwright: Playwright instance
         tournament_list: tournament URL list, use default list if not provided
+        tournament_name_list: tournament name list, use default list if not provided
         level_list: tournament level list, use default list if not provided
         country_list: tournament country list
         city_list: tournament city list
@@ -241,11 +248,12 @@ async def main(
         await run(
             playwright, 
             url, 
-            level_list[i], 
+            level_list[i],
             output_dir,
             country_list[i],
             city_list[i],
-            timezone_list[i]
+            timezone_list[i],
+            tournament_name_list[i] if tournament_name_list else ""
         )
 
 

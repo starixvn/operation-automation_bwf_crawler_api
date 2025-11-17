@@ -14,16 +14,23 @@ from playwright.async_api import Page, Playwright
 
 # ==================== URL & Name Processing ====================
 
-def extract_tournament_name(url: str) -> str:
+def extract_tournament_name(url: str, tournament_name: str = None) -> str:
     """
-    Extract tournament name from URL
+    Extract or convert tournament name
     
     Args:
         url: tournament URL
+        tournament_name: optional tournament name to convert (if provided, url is ignored)
         
     Returns:
-        Tournament name
+        Tournament name suitable for filenames (lowercase, ASCII, no special chars)
     """
+    if tournament_name:
+        # Convert special characters to ASCII using unidecode
+        name = unidecode(tournament_name)
+        return name
+    
+    # Original logic: extract from URL
     url = re.sub(r'/\d{4}-\d{2}-\d{2}/?$', '', url)
     url = re.sub(r'/results/?$', '', url)
     url = url.rstrip('/')
@@ -441,7 +448,8 @@ def save_match_data(
     use_date_suffix: bool = True,
     country: str = "",
     city: str = "",
-    timezone: str = ""
+    timezone: str = "",
+    tournament_name: str = None
 ) -> None:
     """
     Save tournament match data for a specific date
@@ -457,9 +465,10 @@ def save_match_data(
         country: Tournament country
         city: Tournament city
         timezone: Tournament IANA timezone
+        tournament_name: Optional tournament name (will be converted to filename-safe format)
     """
     os.makedirs(output_dir, exist_ok=True)
-    tournament_name = extract_tournament_name(url)
+    tournament_name = extract_tournament_name(url, tournament_name)
     
     # Determine filename
     if use_date_suffix:

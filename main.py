@@ -128,7 +128,8 @@ async def scrape_two_days_matches(request: TournamentRequest):
     Scrape today and tomorrow schedules for specified tournaments
 
     Parameters:
-    - tournaments: List of tournament objects with url and level
+    - tournaments: List of tournament objects with tournament_name, url and level
+        - tournament_name: Tournament name
         - url: Tournament URL
         - level: Tournament level/category
     - output_dir: Output directory (default: two_days)
@@ -167,14 +168,11 @@ async def scrape_two_days_matches(request: TournamentRequest):
                 tournaments=[]
             )
         
-        # Prepare and scrape
-        clear_directory(request.output_dir)
-        logger.info(f"Cleared output directory: {request.output_dir}")
-        # today_date = datetime.now().strftime("%Y-%m-%d")
-        # delete_file(os.path.join("yesterday", f"{today_date}_tournaments.json"))
-        # logger.info(f"Cleared yesterday's tournaments file: {today_date}_tournaments.json")
+        # Prepare and scrape (no longer clear directory at start)
+        os.makedirs(request.output_dir, exist_ok=True)
 
         url_strings = [str(t.url) for t in valid_tournaments]
+        tournament_name_strings = [t.tournament_name for t in valid_tournaments]
         level_strings = [t.level for t in valid_tournaments]
         country_strings = [t.country for t in valid_tournaments]
         city_strings = [t.city for t in valid_tournaments]
@@ -186,6 +184,7 @@ async def scrape_two_days_matches(request: TournamentRequest):
             await run_two_days(
                 playwright, 
                 tournament_list=url_strings, 
+                tournament_name_list=tournament_name_strings,
                 level_list=level_strings,
                 country_list=country_strings,
                 city_list=city_strings,
@@ -197,6 +196,21 @@ async def scrape_two_days_matches(request: TournamentRequest):
         logger.info("Processing scraped files")
         tournaments_data = load_tournament_files(request.output_dir, logger)
         tournaments = build_tournament_list(tournaments_data, logger)
+
+        # Clean up: delete files for this batch after processing
+        logger.info("Cleaning up processed tournament files")
+        for tournament_name in tournaments_data.keys():
+            # Delete HTML files
+            today_file = os.path.join(request.output_dir, f"{tournament_name}_today.html")
+            tomorrow_file = os.path.join(request.output_dir, f"{tournament_name}_tomorrow.html")
+            round_info_file = os.path.join(request.output_dir, f"{tournament_name}_round_info.json")
+            
+            for file_path in [today_file, tomorrow_file, round_info_file]:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.debug(f"Deleted: {file_path}")
+        
+        logger.info(f"Cleaned up {len(tournaments_data)} tournament file sets")
 
         # Log success
         elapsed_time = time.time() - start_time

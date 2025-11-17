@@ -55,7 +55,8 @@ async def run(playwright: Playwright) -> None:
     
     await page.get_by_role("link", name="THIS WEEK").click()
     await page.wait_for_timeout(3000)
-    if await page.locator("text=0 EVENTS").count() > 0:
+    # Use regex to match exactly "0 EVENTS" (not "10 EVENTS", "20 EVENTS", etc.)
+    if await page.locator("text=/^0 EVENTS$/").count() > 0:
         print("THIS WEEK no events found. Exiting...")
         await context.close()
         await browser.close()
