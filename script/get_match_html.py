@@ -307,7 +307,7 @@ async def fetch_html_by_url(playwright: Playwright, url: str, target_date: datet
     
     try:
         target_url = get_date_url(url, target_date)
-        await page.goto(target_url, wait_until="domcontentloaded", timeout=5000)
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=10000)
         await initialize_page(page)
         
         html = await get_schedule_html(page)
@@ -323,7 +323,7 @@ async def fetch_html_by_tab(playwright: Playwright, url: str, target_date: datet
     browser, context, page = await create_browser_context(playwright)
     
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=5000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=10000)
         await initialize_page(page)
         
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
