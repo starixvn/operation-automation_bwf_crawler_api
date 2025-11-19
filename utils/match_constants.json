@@ -1,0 +1,102 @@
+{
+  "MODE_CODE_TO_NAME": {
+    "MS": "Men Singles",
+    "MD": "Men Doubles",
+    "WS": "Women Singles",
+    "WD": "Women Doubles",
+    "XD": "Mixed Doubles"
+  },
+  "MODE_NAME_TO_CODE": {
+    "Men Singles": "MS",
+    "Women Singles": "WS",
+    "Men Doubles": "MD",
+    "Women Doubles": "WD",
+    "Mixed Doubles": "XD"
+  },
+  "VALID_MODE_CODES": ["MS", "WS", "MD", "WD", "XD"],
+  "ROUND_MAPPING": {
+    "QF": "Quarter Final",
+    "SF": "Semi Final",
+    "Final": "Final",
+    "R128": "R128",
+    "R64": "R64",
+    "R32": "R32",
+    "R16": "R16"
+  },
+  "ROUND_TO_CURRENT_ROUND_MAPPING": {
+    "R128": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "R128": "R1",
+      "R64": "R2",
+      "R32": "R3",
+      "R16": "R3",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    },
+    "R64": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "R64": "R1",
+      "R32": "R2",
+      "R16": "R3",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    },
+    "R32": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "R32": "R1",
+      "R16": "R2",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    },
+    "R16": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "R16": "R1",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    },
+    "QF": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    },
+    "SF": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    },
+    "F": {
+      "Qualification": "Qualifying",
+      "Qualifying": "Qualifying",
+      "QF": "Quarter Final",
+      "Quarter Final": "Quarter Final",
+      "SF": "Semi Final",
+      "Semi Final": "Semi Final",
+      "Final": "Final"
+    }
+  }
+}
+

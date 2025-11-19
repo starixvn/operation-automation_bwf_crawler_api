@@ -18,11 +18,17 @@ from script.get_two_days_match_html import main as run_two_days
 from script.get_yesterday_match_html import main_by_date, load_yesterday_tournaments
 from script.tournament_loader import load_tournament_files, build_tournament_list
 from script.tournament_filter import filter_tournaments
+from script.get_matches_info import get_matches_info
+from script.get_max_rounds import get_mode_max_round_async, InvalidTournamentFormatError
+from script.get_match_html import normalize_tournament_name
 from schema import (
     TournamentRequest, DateTournamentRequest, 
-    ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem
+    ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem,
+    ParseMatchesRequest, ParseMatchesResponse,
+    MaxRoundsRequest, MaxRoundsResponse
 )
-from utils import clear_directory, delete_file, setup_logger
+from utils import clear_directory, setup_logger, cleanup_old_json_files
+
 
 # Setup logger
 logger = setup_logger("main", "api.log")
@@ -128,7 +134,8 @@ async def scrape_two_days_matches(request: TournamentRequest):
     Scrape today and tomorrow schedules for specified tournaments
 
     Parameters:
-    - tournaments: List of tournament objects with url and level
+    - tournaments: List of tournament objects with tournament_name, url and level
+        - tournament_name: Tournament name
         - url: Tournament URL
         - level: Tournament level/category
     - output_dir: Output directory (default: two_days)
@@ -167,14 +174,11 @@ async def scrape_two_days_matches(request: TournamentRequest):
                 tournaments=[]
             )
         
-        # Prepare and scrape
-        clear_directory(request.output_dir)
-        logger.info(f"Cleared output directory: {request.output_dir}")
-        # today_date = datetime.now().strftime("%Y-%m-%d")
-        # delete_file(os.path.join("yesterday", f"{today_date}_tournaments.json"))
-        # logger.info(f"Cleared yesterday's tournaments file: {today_date}_tournaments.json")
+        # Prepare and scrape (no longer clear directory at start)
+        os.makedirs(request.output_dir, exist_ok=True)
 
         url_strings = [str(t.url) for t in valid_tournaments]
+        tournament_name_strings = [t.tournament_name for t in valid_tournaments]
         level_strings = [t.level for t in valid_tournaments]
         country_strings = [t.country for t in valid_tournaments]
         city_strings = [t.city for t in valid_tournaments]
@@ -186,6 +190,7 @@ async def scrape_two_days_matches(request: TournamentRequest):
             await run_two_days(
                 playwright, 
                 tournament_list=url_strings, 
+                tournament_name_list=tournament_name_strings,
                 level_list=level_strings,
                 country_list=country_strings,
                 city_list=city_strings,
@@ -197,6 +202,21 @@ async def scrape_two_days_matches(request: TournamentRequest):
         logger.info("Processing scraped files")
         tournaments_data = load_tournament_files(request.output_dir, logger)
         tournaments = build_tournament_list(tournaments_data, logger)
+
+        # Clean up: delete files for this batch after processing
+        logger.info("Cleaning up processed tournament files")
+        for tournament_name in tournaments_data.keys():
+            # Delete HTML files
+            today_file = os.path.join(request.output_dir, f"{tournament_name}_today.html")
+            tomorrow_file = os.path.join(request.output_dir, f"{tournament_name}_tomorrow.html")
+            round_info_file = os.path.join(request.output_dir, f"{tournament_name}_round_info.json")
+            
+            for file_path in [today_file, tomorrow_file, round_info_file]:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.debug(f"Deleted: {file_path}")
+        
+        logger.info(f"Cleaned up {len(tournaments_data)} tournament file sets")
 
         # Log success
         elapsed_time = time.time() - start_time
@@ -216,6 +236,87 @@ async def scrape_two_days_matches(request: TournamentRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Scraping failed: {str(e)}"
+        )
+
+
+@app.post("/parse-matches-html", response_model=ParseMatchesResponse)
+async def parse_matches_html(request: ParseMatchesRequest):
+    """
+    Parse matches HTML
+    
+    Parameters:
+    - html: HTML content of the matches page
+    - tournament_name: Tournament name
+    - league_id: League ID for generating match_id
+    - level: Tournament level/category
+    - country: Tournament country
+    - city: Tournament city
+    - IANA_timezone: Tournament IANA timezone
+    - mode_max_round: Max rounds for each mode (Format: {"MS": "R32", "WS": "R16", ...})
+    """
+    logger.info("=" * 60)
+    logger.info(f"Starting parsing matches HTML for {request.tournament_name}")
+    
+    try:
+        # Parse matches
+        matches = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
+        logger.info(f"Successfully parsed {len(matches)} matches for {request.tournament_name}")
+        logger.info("=" * 60)
+        
+        return ParseMatchesResponse(
+            status="success",
+            message=f"Successfully parsed {len(matches)} matches for {request.tournament_name}",
+            matches=matches
+        )
+    except Exception as e:
+        logger.error(f"Failed to parse matches HTML: {str(e)}", exc_info=True)
+        logger.info("=" * 60)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse matches HTML: {str(e)}"
+        )
+
+
+@app.post("/get-max-rounds", response_model=MaxRoundsResponse)
+async def get_max_rounds(request: MaxRoundsRequest):
+    """
+    Get max rounds for each mode
+    
+    Parameters:
+    - tournament_url: Tournament URL
+    - tournament_name: Tournament name
+    """
+    logger.info("=" * 60)
+    logger.info(f"Starting getting max rounds for {request.tournament_name}")
+
+    try:
+        tournament_name = normalize_tournament_name(request.tournament_name)
+        max_rounds_request = MaxRoundsRequest(tournament_name=tournament_name, tournament_url=request.tournament_url)
+        mode_max_round = await get_mode_max_round_async(max_rounds_request)
+
+        # Clean up old JSON files (older than 8 days) before processing
+        cleanup_old_json_files("mode_max_round", days=1)
+
+        return MaxRoundsResponse(
+            status="success",
+            message=f"Successfully got max rounds for {tournament_name}",
+            tournament_url=request.tournament_url,
+            tournament_name=tournament_name,
+            mode_max_round=mode_max_round
+        )
+    except InvalidTournamentFormatError as e:
+        logger.warning(f"Invalid tournament format: {str(e)}")
+        logger.info("=" * 60)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tournament format: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to get max rounds: {str(e)}", exc_info=True)
+        logger.info("=" * 60)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get max rounds: {str(e)}"
         )
 
 

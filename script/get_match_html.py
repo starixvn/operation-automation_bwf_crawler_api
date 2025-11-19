@@ -14,21 +14,56 @@ from playwright.async_api import Page, Playwright
 
 # ==================== URL & Name Processing ====================
 
-def extract_tournament_name(url: str) -> str:
+def normalize_tournament_name(tournament_name: str) -> str:
     """
-    Extract tournament name from URL
+    Normalize tournament name to pure English with Title Case
+    
+    Converts non-English characters to English using unidecode,
+    removes non-alphabetic characters (except spaces),
+    and capitalizes the first letter of each word.
+    Preserves Roman numerals (I, II, III, IV, V, VI, VII, VIII, IX, X, etc.)
     
     Args:
-        url: tournament URL
+        tournament_name: Tournament name (may contain non-English characters)
         
     Returns:
-        Tournament name
+        Normalized tournament name in Title Case with only English characters
     """
-    url = re.sub(r'/\d{4}-\d{2}-\d{2}/?$', '', url)
-    url = re.sub(r'/results/?$', '', url)
-    url = url.rstrip('/')
-    tournament_name = url.split("/")[-1]
-    return tournament_name
+    if not tournament_name:
+        return tournament_name
+    
+    # Convert to ASCII/English using unidecode
+    name = unidecode(tournament_name)
+    
+    # Remove non-alphabetic characters except spaces
+    name = re.sub(r'[^a-zA-Z\s]', ' ', name)
+    
+    # Replace multiple spaces with single space
+    name = re.sub(r'\s+', ' ', name)
+    
+    # Strip leading/trailing spaces
+    name = name.strip()
+    
+    # Split into words and process each word
+    words = name.split()
+    processed_words = []
+    
+    # Pattern to match Roman numerals (I, II, III, IV, V, VI, VII, VIII, IX, X, etc.)
+    roman_pattern = re.compile(r'^[IVX]+$', re.IGNORECASE)
+    
+    for word in words:
+        # Check if word is a Roman numeral
+        if roman_pattern.match(word):
+            # Keep Roman numeral in uppercase
+            processed_words.append(word.upper())
+        else:
+            # Apply title case to regular words
+            processed_words.append(word.title())
+    
+    # Join words back together
+    name = ' '.join(processed_words)
+    
+    return name
 
 
 def extract_league_id(url: str) -> str:
@@ -49,25 +84,6 @@ def extract_league_id(url: str) -> str:
         return match.group(1)
     
     return ""
-
-
-def format_tournament_name(raw_name: str) -> str:
-    """
-    Format tournament name by replacing dashes with spaces and capitalizing
-    
-    Args:
-        raw_name: Raw tournament name with dashes
-        
-    Returns:
-        Formatted tournament name
-    """
-    if not raw_name:
-        return raw_name
-    
-    parts = raw_name.split('-')
-    formatted = ' '.join(word.capitalize() for word in parts)
-    
-    return formatted
 
 
 def is_bwfworldtour_url(url: str) -> bool:
@@ -291,7 +307,7 @@ async def fetch_html_by_url(playwright: Playwright, url: str, target_date: datet
     
     try:
         target_url = get_date_url(url, target_date)
-        await page.goto(target_url, wait_until="domcontentloaded", timeout=5000)
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=10000)
         await initialize_page(page)
         
         html = await get_schedule_html(page)
@@ -307,7 +323,7 @@ async def fetch_html_by_tab(playwright: Playwright, url: str, target_date: datet
     browser, context, page = await create_browser_context(playwright)
     
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=5000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=10000)
         await initialize_page(page)
         
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
@@ -441,7 +457,8 @@ def save_match_data(
     use_date_suffix: bool = True,
     country: str = "",
     city: str = "",
-    timezone: str = ""
+    timezone: str = "",
+    tournament_name: str = None
 ) -> None:
     """
     Save tournament match data for a specific date
@@ -457,9 +474,10 @@ def save_match_data(
         country: Tournament country
         city: Tournament city
         timezone: Tournament IANA timezone
+        tournament_name: Optional tournament name (will be converted to filename-safe format)
     """
     os.makedirs(output_dir, exist_ok=True)
-    tournament_name = extract_tournament_name(url)
+    tournament_name = normalize_tournament_name(tournament_name)
     
     # Determine filename
     if use_date_suffix:
@@ -486,13 +504,12 @@ def save_match_data(
     
     # Save round info
     league_id = extract_league_id(url)
-    league_name = format_tournament_name(tournament_name)
     age_category = "Juniors" if "junior" in level.lower() else "Adults"
     
     round_info = {
         "tournament_url": url,
         "league_id": league_id,
-        "league_name": league_name,
+        "league_name": tournament_name,
         "level": level,
         "country": country,
         "city": city,

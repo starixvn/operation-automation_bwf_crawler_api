@@ -7,13 +7,14 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from typing import List
+from unidecode import unidecode
 from playwright.async_api import Playwright, async_playwright
 
 # Import shared functions
 from script.get_match_html import (
-    extract_tournament_name,
+    normalize_tournament_name,
     fetch_match_html,
-    fetch_all_dates_mode_max_round
+    extract_league_id
 )
 
 DEFAULT_TOURNAMENT_LIST = [
@@ -55,7 +56,7 @@ def append_base_url(url: str, level: str, output_dir: str = "yesterday", country
             "timestamp": today.isoformat(),
             "tournaments": []
         }
-    tournament_name = extract_tournament_name(url)
+    tournament_name = normalize_tournament_name(tournament_name)
     
     # Append URL if not already in list
     if tournament_name not in data["tournaments"]:
@@ -79,6 +80,7 @@ def append_base_url(url: str, level: str, output_dir: str = "yesterday", country
 async def scrape_tournament_for_dates(
     playwright: Playwright,
     url: str,
+    tournament_name: str,
     level: str,
     dates: List[datetime],
     output_dir: str = "two_days",
@@ -92,6 +94,7 @@ async def scrape_tournament_for_dates(
     Args:
         playwright: Playwright instance
         url: Tournament URL
+        tournament_name: Tournament name
         level: Tournament level
         dates: List of dates to scrape
         output_dir: Output directory
@@ -100,14 +103,6 @@ async def scrape_tournament_for_dates(
         dict with date labels as keys and HTML as values
     """
     results = {}
-    
-    # Fetch mode_max_round by traversing all date tabs from first to last
-    try:
-        mode_max_round = await fetch_all_dates_mode_max_round(playwright, url)
-        print(f"Found mode_max_round from all dates: {mode_max_round}")
-    except Exception as e:
-        print(f"Error fetching mode_max_round from all dates: {str(e)}")
-        mode_max_round = {}
     
     # Fetch HTML for specified dates (today and tomorrow)
     for i, date in enumerate(dates):
@@ -124,11 +119,10 @@ async def scrape_tournament_for_dates(
     # Save the results
     if results:
         # Save HTML files
-        tournament_name = extract_tournament_name(url)
+        # Use provided tournament_name if available, otherwise extract from URL
+        tournament_name = normalize_tournament_name(tournament_name)
         os.makedirs(output_dir, exist_ok=True)
-        
-        from unidecode import unidecode
-        
+
         if "today" in results:
             today_file = os.path.join(output_dir, f"{tournament_name}_today.html")
             with open(today_file, "w", encoding="utf-8") as f:
@@ -140,22 +134,19 @@ async def scrape_tournament_for_dates(
                 f.write(unidecode(results["tomorrow"]))
         
         # Save round info
-        from script.get_match_html import extract_league_id, format_tournament_name
-        
         league_id = extract_league_id(url)
-        league_name = format_tournament_name(tournament_name)
         age_category = "Juniors" if "junior" in level.lower() else "Adults"
         
         round_info = {
             "tournament_url": url,
             "league_id": league_id,
-            "league_name": league_name,
+            "league_name": tournament_name,
             "level": level,
             "country": country,
             "city": city,
             "IANA_timezone": timezone,
             "age_category": age_category,
-            "mode_max_round": mode_max_round,
+            # "mode_max_round": mode_max_round,
             "timestamp": datetime.now().isoformat()
         }
         
@@ -164,8 +155,8 @@ async def scrape_tournament_for_dates(
             json.dump(round_info, f, ensure_ascii=False, indent=2)
         
         # Record URL if today's data exists
-        if "today" in results:
-            append_base_url(url, level, "yesterday", country, city, timezone)
+        # if "today" in results:
+        #     append_base_url(url, level, "yesterday", country, city, timezone)
     
     return results
 
@@ -177,7 +168,8 @@ async def run(
     output_dir: str = "two_days",
     country: str = "",
     city: str = "",
-    timezone: str = ""
+    timezone: str = "",
+    tournament_name: str = ""
 ) -> None:
     """
     Main process for handling single tournament
@@ -190,6 +182,7 @@ async def run(
         country: tournament country
         city: tournament city
         timezone: tournament IANA timezone
+        tournament_name: tournament name
     """
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
@@ -197,6 +190,7 @@ async def run(
     await scrape_tournament_for_dates(
         playwright,
         url,
+        tournament_name,
         level,
         [today, tomorrow],
         output_dir,
@@ -209,6 +203,7 @@ async def run(
 async def main(
     playwright: Playwright,
     tournament_list: list[str] = None,
+    tournament_name_list: list[str] = None,
     level_list: list[str] = None,
     country_list: list[str] = None,
     city_list: list[str] = None,
@@ -221,6 +216,7 @@ async def main(
     Args:
         playwright: Playwright instance
         tournament_list: tournament URL list, use default list if not provided
+        tournament_name_list: tournament name list, use default list if not provided
         level_list: tournament level list, use default list if not provided
         country_list: tournament country list
         city_list: tournament city list
@@ -241,11 +237,12 @@ async def main(
         await run(
             playwright, 
             url, 
-            level_list[i], 
+            level_list[i],
             output_dir,
             country_list[i],
             city_list[i],
-            timezone_list[i]
+            timezone_list[i],
+            tournament_name_list[i] if tournament_name_list else ""
         )
 
 

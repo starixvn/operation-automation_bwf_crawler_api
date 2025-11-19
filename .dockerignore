@@ -19,6 +19,8 @@ ENV/
 # 輸出目錄
 two_days/
 this_week/
+yesterday/
+mode_max_round/
 
 # Git
 .git/
