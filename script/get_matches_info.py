@@ -147,21 +147,41 @@ def extract_mode_code_from_raw_text(text: str) -> str:
     Extract mode code from raw HTML text, preserving age group if present
     
     Args:
-        text: Raw HTML text like "MS U13 - Qualification" or "WD - Main Draw"
+        text: Raw HTML text like "MS U13 - Qualification" or "WD - Main Draw" or "MD-U19"
     
     Returns:
-        Mode code like "MS U13", "MS", "WD", etc. (preserving age group like U13, U15, etc.)
+        Mode code like "MS U13", "MS", "WD", "MD U19", etc. (preserving age group like U13, U15, etc.)
     
     Note:
         Only processes up to the first "-" or similar separator.
         All symbols are replaced with spaces before processing.
+        Handles cases like "MD-U19" where age group is after the hyphen.
     """
-    # Split by "-" to get only the part before separator
-    if '-' in text:
-        text = text.split('-')[0]
+    # First, normalize whitespace
+    text = ' '.join(text.split())
     
-    # Replace all symbols with spaces
-    text_cleaned = re.sub(r'[^\w\s]', ' ', text)
+    # Check if there's a hyphen - if so, we need to extract mode and age group from both sides
+    if '-' in text:
+        # Split by "-" to get parts
+        parts_before_hyphen = text.split('-')[0].strip()
+        parts_after_hyphen = text.split('-', 1)[1].strip() if len(text.split('-')) > 1 else ""
+        
+        # Combine both parts to capture age group that might be after hyphen (e.g., "MD-U19")
+        # But only take the part before any descriptive text like "Qualification" or "Main Draw"
+        combined_text = parts_before_hyphen
+        if parts_after_hyphen:
+            # Check if the part after hyphen starts with an age group (U13, U15, etc.)
+            age_group_match = re.search(r'^(U\d+)', parts_after_hyphen, re.IGNORECASE)
+            if age_group_match:
+                combined_text = f"{parts_before_hyphen} {age_group_match.group(1)}"
+            else:
+                # Otherwise, just use the part before hyphen
+                combined_text = parts_before_hyphen
+    else:
+        combined_text = text
+    
+    # Replace all symbols with spaces (except alphanumeric and spaces)
+    text_cleaned = re.sub(r'[^\w\s]', ' ', combined_text)
     text_cleaned = ' '.join(text_cleaned.split())
     
     parts = text_cleaned.split()
@@ -593,7 +613,16 @@ if __name__ == "__main__":
     
     request_file = "test_html.json"
     with open(request_file, 'r') as f:
-        request = json.load(f)
+        request_data = json.load(f)
+    
+    # Handle both list and dict formats
+    if isinstance(request_data, list) and len(request_data) > 0:
+        request = request_data[0]
+    elif isinstance(request_data, dict):
+        request = request_data
+    else:
+        print("錯誤：test_html.json 格式不正確")
+        sys.exit(1)
     
     matches = get_matches_info(
         request['html'], 
