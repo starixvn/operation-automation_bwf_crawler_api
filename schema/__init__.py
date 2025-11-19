@@ -8,6 +8,11 @@ from .schema import (
     DateTournamentRequest,
     TournamentListItem,
     TournamentListResponse,
+    ParseMatchesRequest,
+    ParseMatchesResponse,
+    MatchData,
+    MaxRoundsRequest,
+    MaxRoundsResponse,
 )
 
 __all__ = [
@@ -18,5 +23,10 @@ __all__ = [
     "DateTournamentRequest",
     "TournamentListItem",
     "TournamentListResponse",
+    "ParseMatchesRequest",
+    "ParseMatchesResponse",
+    "MatchData",
+    "MaxRoundsRequest",
+    "MaxRoundsResponse",
 ]
 

@@ -12,9 +12,9 @@ from playwright.async_api import Playwright, async_playwright
 
 # Import shared functions
 from script.get_match_html import (
-    extract_tournament_name,
+    normalize_tournament_name,
     fetch_match_html,
-    fetch_all_dates_mode_max_round
+    extract_league_id
 )
 
 DEFAULT_TOURNAMENT_LIST = [
@@ -56,7 +56,7 @@ def append_base_url(url: str, level: str, output_dir: str = "yesterday", country
             "timestamp": today.isoformat(),
             "tournaments": []
         }
-    tournament_name = extract_tournament_name(url)
+    tournament_name = normalize_tournament_name(tournament_name)
     
     # Append URL if not already in list
     if tournament_name not in data["tournaments"]:
@@ -104,14 +104,6 @@ async def scrape_tournament_for_dates(
     """
     results = {}
     
-    # Fetch mode_max_round by traversing all date tabs from first to last
-    try:
-        mode_max_round = await fetch_all_dates_mode_max_round(playwright, url)
-        print(f"Found mode_max_round from all dates: {mode_max_round}")
-    except Exception as e:
-        print(f"Error fetching mode_max_round from all dates: {str(e)}")
-        mode_max_round = {}
-    
     # Fetch HTML for specified dates (today and tomorrow)
     for i, date in enumerate(dates):
         date_label = "today" if i == 0 else "tomorrow"
@@ -128,7 +120,7 @@ async def scrape_tournament_for_dates(
     if results:
         # Save HTML files
         # Use provided tournament_name if available, otherwise extract from URL
-        tournament_name = extract_tournament_name(url, tournament_name)
+        tournament_name = normalize_tournament_name(tournament_name)
         os.makedirs(output_dir, exist_ok=True)
 
         if "today" in results:
@@ -142,22 +134,19 @@ async def scrape_tournament_for_dates(
                 f.write(unidecode(results["tomorrow"]))
         
         # Save round info
-        from script.get_match_html import extract_league_id, format_tournament_name
-        
         league_id = extract_league_id(url)
-        league_name = format_tournament_name(tournament_name)
         age_category = "Juniors" if "junior" in level.lower() else "Adults"
         
         round_info = {
             "tournament_url": url,
             "league_id": league_id,
-            "league_name": league_name,
+            "league_name": tournament_name,
             "level": level,
             "country": country,
             "city": city,
             "IANA_timezone": timezone,
             "age_category": age_category,
-            "mode_max_round": mode_max_round,
+            # "mode_max_round": mode_max_round,
             "timestamp": datetime.now().isoformat()
         }
         
@@ -166,8 +155,8 @@ async def scrape_tournament_for_dates(
             json.dump(round_info, f, ensure_ascii=False, indent=2)
         
         # Record URL if today's data exists
-        if "today" in results:
-            append_base_url(url, level, "yesterday", country, city, timezone)
+        # if "today" in results:
+        #     append_base_url(url, level, "yesterday", country, city, timezone)
     
     return results
 
