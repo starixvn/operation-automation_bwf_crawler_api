@@ -241,14 +241,14 @@ def extract_normalized_round_for_mapping(text: str) -> str:
     Extract normalized round from text for mapping purposes
     
     Args:
-        text: Text like "Qual. R64" or "R32" or "QF" or "Final"
+        text: Text like "Qual. R64" or "R32" or "QF" or "Final" or "Qual. QF"
     
     Returns:
         Normalized round like "R64", "R32", "Quarter Final", "Final", "Qualifying", etc.
         Used for mapping to current_round
     """
-    # First, check if it's a qualifying round (priority check)
-    qual_match = re.search(r'Qual[^\w]*(R\d+)', text, re.IGNORECASE)
+    # Check if it's a qualifying round (e.g., "Qual. R64", "Qual. QF", "Qual. R16")
+    qual_match = re.search(r'Qual[^\w]', text, re.IGNORECASE)
     if qual_match:
         return "Qualifying"
     
