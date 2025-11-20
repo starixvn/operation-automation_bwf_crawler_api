@@ -4,7 +4,7 @@ import re
 import asyncio
 from schema import MaxRoundsRequest
 from playwright.async_api import Playwright, Page, async_playwright
-from script.get_match_html import create_browser_context, extract_league_id
+from script.get_match_html import create_browser_context, extract_league_id, normalize_tournament_name
 
 
 class InvalidTournamentFormatError(Exception):
@@ -48,6 +48,7 @@ async def get_all_modes(page: Page) -> list[str]:
             modes.append(mode)
     
     return modes
+
 
 def is_valid_round_format(round_str: str) -> bool:
     """
@@ -158,6 +159,7 @@ async def find_mode_max_round(page: Page, mode: str) -> str:
         raise InvalidTournamentFormatError(
             f"Error finding max round for mode '{mode}': {str(e)}"
         ) from e
+
 
 async def process_all_modes(page: Page) -> dict[str, str]:
     """
@@ -280,6 +282,7 @@ async def fetch_mode_max_round(playwright: Playwright, url: str) -> dict[str, st
         await context.close()
         await browser.close()
 
+
 async def get_mode_max_round_async(request: MaxRoundsRequest) -> dict[str, str]:
     """
     Get max rounds for each mode (async version)
@@ -313,9 +316,12 @@ async def get_mode_max_round_async(request: MaxRoundsRequest) -> dict[str, str]:
     
     # Save to file for future use (use league_id as filename)
     with open(mode_max_round_file, 'w', encoding='utf-8') as f:
+        tournament_name = normalize_tournament_name(request.tournament_name)
+        mode_max_round["league_name"] = tournament_name
         json.dump(mode_max_round, f, ensure_ascii=False, indent=2)
     
     return mode_max_round
+
 
 def get_mode_max_round(request: MaxRoundsRequest) -> dict[str, str]:
     """
@@ -328,6 +334,7 @@ def get_mode_max_round(request: MaxRoundsRequest) -> dict[str, str]:
         Dictionary with mode as key and max round (e.g., "R32") as value
     """
     return asyncio.run(get_mode_max_round_async(request))
+
 
 if __name__ == "__main__":
     # request = MaxRoundsRequest(

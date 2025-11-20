@@ -43,7 +43,7 @@ async def run(playwright: Playwright) -> None:
             get: () => undefined
         });
     """)
-    await page.goto("https://bwfbadminton.com/calendar/", wait_until="domcontentloaded", timeout=5000)
+    await page.goto("https://bwfbadminton.com/calendar/", wait_until="domcontentloaded", timeout=10000)
     # Wait and close Cookie consent dialog (if exists)
     try:
         await page.get_by_role("button", name="Close").click(timeout=5000)

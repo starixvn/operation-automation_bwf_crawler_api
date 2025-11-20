@@ -295,7 +295,7 @@ async def get_max_rounds(request: MaxRoundsRequest):
         mode_max_round = await get_mode_max_round_async(max_rounds_request)
 
         # Clean up old JSON files (older than 8 days) before processing
-        cleanup_old_json_files("mode_max_round", days=1)
+        cleanup_old_json_files("mode_max_round", days=8)
 
         return MaxRoundsResponse(
             status="success",
