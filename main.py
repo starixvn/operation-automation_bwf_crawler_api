@@ -21,11 +21,13 @@ from script.tournament_filter import filter_tournaments
 from script.get_matches_info import get_matches_info
 from script.get_max_rounds import get_mode_max_round_async, InvalidTournamentFormatError
 from script.get_match_html import normalize_tournament_name
+from script.get_this_week_tmts import main as get_this_week_tournament_list
 from schema import (
     TournamentRequest, DateTournamentRequest, 
     ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem,
     ParseMatchesRequest, ParseMatchesResponse,
-    MaxRoundsRequest, MaxRoundsResponse
+    MaxRoundsRequest, MaxRoundsResponse,
+    ThisWeekTournamentListResponse
 )
 from utils import clear_directory, setup_logger, cleanup_old_json_files
 
@@ -462,6 +464,29 @@ async def scrape_matches_by_date(request: DateTournamentRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Scraping failed: {str(e)}"
+        )
+
+
+@app.get("/get-tournament-list", response_model=ThisWeekTournamentListResponse)
+async def get_tournament_list():
+    """
+    Get tournament list
+    
+    Returns:
+    - TournamentListResponse with list of tournaments (without HTML)
+    """
+    try:
+        tournaments = await get_this_week_tournament_list()
+        return ThisWeekTournamentListResponse(
+            status="success",
+            message="Successfully got tournament list",
+            tournaments=tournaments
+        )
+    except Exception as e:
+        logger.error(f"Failed to get tournament list: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get tournament list: {str(e)}"
         )
 
 

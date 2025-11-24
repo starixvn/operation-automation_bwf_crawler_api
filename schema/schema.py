@@ -134,3 +134,17 @@ class MaxRoundsResponse(BaseModel):
     tournament_url: str
     tournament_name: str
     mode_max_round: dict[str, str]  # Format: {"MS": "R32", "WS": "R16", ...}
+
+class ThisWeekTournamentListItem(BaseModel):
+    """This week tournament list item"""
+    tmt_id: int
+    tmt_code: str
+    tmt_url: str
+    tmt_name: str
+    tmt_level: str
+
+class ThisWeekTournamentListResponse(BaseModel):
+    """This week tournament list response model"""
+    status: str
+    message: str
+    tournaments: List[ThisWeekTournamentListItem]
