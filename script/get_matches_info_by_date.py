@@ -1,66 +1,106 @@
 import asyncio
 from playwright.async_api import async_playwright
-import time,json
+import json
+from datetime import datetime
+from script.get_match_html import fetch_match_response, extract_league_id
+import time
 
+class MatchData:
+    def __init__(self):
+        self.league_id = ""
+        self.match_id = ""
+        self.player_home_1_id = ""
+        self.player_home_1_country = ""
+        self.player_home_1_name = ""
+        self.player_home_2_id = ""
+        self.player_home_2_country = ""
+        self.player_home_2_name = ""
+        self.player_away_1_id = ""
+        self.player_away_1_country = ""
+        self.player_away_1_name = ""
+        self.player_away_2_id = ""
+        self.player_away_2_country = ""
+        self.player_away_2_name = ""
+        self.mode = ""
+        self.round_name = ""
+        self.court_name = ""
+        self.kickoff_time = ""
 
-async def fetch_bwf_matches(tournament_code, date):
-    api_url = f"https://extranet-lv.bwfbadminton.com/api/tournaments/day-matches?tournamentCode={tournament_code}&date={date}&order=2&court=0"
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                '--disable-blink-features=AutomationControlled',
-                '--disable-dev-shm-usage',
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-web-security',
-            ]
-        )
-        context = await browser.new_context(
-            user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            viewport={'width': 1920, 'height': 1080},
-            locale='en-US'
-        )
-        page = await context.new_page()
-        result = []
-
-        # 🔎 加上監聽，印出所有 request header
-        # async def log_request(request):
-        #     print("\n==== 🔵 Request ====")
-        #     print("URL:", request.url)
-        #     print("Method:", request.method)
-        #     print("Headers:", request.headers)
+    def update_league_id(self, league_id: str):
+        self.league_id = league_id
+    
+    def update(self, match_item):
+        self.match_id = match_item["id"]
         
-        async def log_response(response):
-            # print("\n==== 🟢 Response ====")
-            # print("URL:", response.url)
-            # print("Status:", response.status)
-            # print("Headers:", response.headers)
-            if (response.url == api_url):
-                # print(response.text())
-                result.append(await response.text())
+        # players
+        for idx, home_player in enumerate(match_item["team1"]["players"], 1):
+            if idx == 1:
+                self.player_home_1_id = home_player["id"]
+                self.player_home_1_country = home_player["countryCode"]
+                self.player_home_1_name = home_player["nameDisplay"]
+            elif idx == 2:
+                self.player_home_2_id = home_player["id"]
+                self.player_home_2_country = home_player["countryCode"]
+                self.player_home_2_name = home_player["nameDisplay"]
+        
+        for idx, away_player in enumerate(match_item["team2"]["players"], 1):
+            if idx == 1:
+                self.player_away_1_id = away_player["id"]
+                self.player_away_1_country = away_player["countryCode"]
+                self.player_away_1_name = away_player["nameDisplay"]
+            elif idx == 2:
+                self.player_away_2_id = away_player["id"]
+                self.player_away_2_country = away_player["countryCode"]
+                self.player_away_2_name = away_player["nameDisplay"]
 
-        # page.on("request", log_request)
-        page.on("response", log_response)
+        self.mode = match_item["drawName"]
+        self.round_name = match_item["roundName"]
+        self.court_name = match_item["courtName"]
+        self.kickoff_time = match_item["matchTimeUtc"]
+    
+    def to_json(self):
+        return json.dumps(self.__dict__, ensure_ascii=False, indent=2)
+        
+    def to_dict(self):
+        data = self.__dict__.copy()
+        return data
 
-        print("🔍 Visiting website to bypass Cloudflare...")
-        await page.goto("https://bwfworldtour.bwfbadminton.com/tournament/5199/sathio-group-australian-open-2025/results/", wait_until="domcontentloaded")
-        time.sleep(3)
-        await page.get_by_role("button", name="Close").click()
 
-        return result
+
+async def fetch_bwf_matches(tournament_code, tournament_url, date):
+    formatted_date = date.strftime("%Y-%m-%d")
+    api_url = f"https://extranet-lv.bwfbadminton.com/api/tournaments/day-matches?tournamentCode={tournament_code}&date={formatted_date}&order=2&court=0"
+
+    async with async_playwright() as playwright:
+        result = await fetch_match_response(playwright, tournament_url, date, api_url)
+
+    league_id = extract_league_id(tournament_url)
+
+    matches  = []
+    
+
+    for match_item in result:
+        single_match = MatchData()
+        single_match.update_league_id(league_id)
+        single_match.update(match_item)
+        matches.append(single_match.to_dict())
+
+    return matches
 
 if __name__ == "__main__":
     async def main():
+        # input
         tmt_code = "5789F115-C018-47E2-81B0-7CA2DC3F5CA8"
-        date = "2025-11-21"
-        result = await fetch_bwf_matches(tmt_code, date)
+        tmt_url = "https://bwfworldtour.bwfbadminton.com/tournament/5199/sathio-group-australian-open-2025/results/"
+        # tmt_code = "4908E48F-CF45-4ED0-BC7B-3A65EBC1B785"
+        # tmt_url = "https://bwfbadminton.com/tournament/5721/badminton-asia-west-asia-regional-championships-2025-individual"
+        date = "2025-11-20"
+        dt = datetime.strptime(date, "%Y-%m-%d")
+
+        result = await fetch_bwf_matches(tmt_code, tmt_url, dt)
 
         if result:
-            print(result)
-            # print(json.dumps(result, indent=2, ensure_ascii=False))
-        # async with async_playwright() as playwright:
-        #     await run(playwright)
+            with open(f"{tmt_code}.json", "w", encoding="utf-8") as f:
+                data = json.dump(result, f, indent=2, ensure_ascii=False)
 
     asyncio.run(main())

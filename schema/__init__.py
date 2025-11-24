@@ -13,6 +13,9 @@ from .schema import (
     MatchData,
     MaxRoundsRequest,
     MaxRoundsResponse,
+    DateMatchData,
+    DateMatchRequest,
+    DateMatchResponse
 )
 
 __all__ = [
@@ -28,5 +31,8 @@ __all__ = [
     "MatchData",
     "MaxRoundsRequest",
     "MaxRoundsResponse",
+    "DateMatchData",
+    "DateMatchRequest",
+    "DateMatchResponse"
 ]
 

@@ -21,11 +21,13 @@ from script.tournament_filter import filter_tournaments
 from script.get_matches_info import get_matches_info
 from script.get_max_rounds import get_mode_max_round_async, InvalidTournamentFormatError
 from script.get_match_html import normalize_tournament_name
+from script.get_matches_info_by_date import fetch_bwf_matches
 from schema import (
     TournamentRequest, DateTournamentRequest, 
     ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem,
     ParseMatchesRequest, ParseMatchesResponse,
-    MaxRoundsRequest, MaxRoundsResponse
+    MaxRoundsRequest, MaxRoundsResponse,
+    DateMatchRequest, DateMatchResponse
 )
 from utils import clear_directory, setup_logger, cleanup_old_json_files
 
@@ -458,6 +460,48 @@ async def scrape_matches_by_date(request: DateTournamentRequest):
     except Exception as e:
         elapsed_time = time.time() - start_time
         logger.error(f"Scraping by date failed after {elapsed_time:.2f}s: {str(e)}", exc_info=True)
+        logger.info("=" * 60)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scraping failed: {str(e)}"
+        )
+
+@app.get("/day-matches", response_model=DateMatchResponse)
+async def scrape_specified_date_matches(request: DateMatchRequest):
+    import time
+    start_time = time.time()
+    logger.info("=" * 60)
+    logger.info("Starting scraping the specified date matches.")
+    
+    try:
+        # if not request.league_code or request.url:
+        #     logger.info(f"{request.league_code}")
+        #     logger.info(f"{request.url}")
+        #     logger.warning("No league code or url was given.")
+        #     raise HTTPException(status_code=400, detail="The league code and url are required")
+        # if not request.date:
+        #     logger.warning("No date was given")
+        #     raise HTTPException(status_code=400, detail="The specified date is required")
+
+        tmt_code = request.tmt_code
+        tmt_url = request.url
+        dt = datetime.strptime(request.date, "%Y-%m-%d")
+        
+        result = await fetch_bwf_matches(tmt_code, tmt_url, dt)
+        match_count = len(result)
+        elapsed_time = time.time() - start_time
+        logger.info(f"Successfully in {elapsed_time:.2f}s")
+        logger.info("=" * 60)
+        
+        return DateMatchResponse(
+            status="success",
+            message=f"Successfully scraped the specified date matches, total {match_count} matches.",
+            matches = result
+        )
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"Failed after {elapsed_time:.2f}s: {str(e)}", exc_info=True)
         logger.info("=" * 60)
         raise HTTPException(
             status_code=500,

@@ -444,6 +444,95 @@ async def fetch_all_dates_mode_max_round(playwright: Playwright, url: str) -> di
         await context.close()
         await browser.close()
 
+async def fetch_response_by_url(playwright: Playwright, url: str, target_date: datetime, api_url: str) -> Optional[str]:
+    """Fetch Web response for regular site using goint to the specific date url"""
+    browser, context, page = await create_browser_context(playwright)
+    
+    try:
+        result = []
+        async def log_response(response):
+            if (response.url == api_url):
+                result.append(await response.json())
+
+        page.on("response", log_response)
+
+        target_url = get_date_url(url, target_date)
+
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=10000)
+        await initialize_page(page)
+        await page.wait_for_timeout(2500)
+
+        return result[0]
+
+    finally:
+        await context.close()
+        await browser.close()
+
+async def fetch_response_by_tab(playwright: Playwright, url: str, target_date: datetime, api_url: str) -> Optional[str]:
+    """Fetch Web response for regular site using tab clicks with specific date"""
+    browser, context, page = await create_browser_context(playwright)
+    
+    try:
+        result = []
+        async def log_response(response):
+            if (response.url == api_url):
+                result.append(await response.json())
+
+        page.on("response", log_response)
+
+        await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+        await initialize_page(page)        
+        
+        total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
+    
+        if total_dates == 0:
+            return None
+        
+        date_tab_texts = []
+        for i in range(total_dates):
+            try:
+                element = all_date_buttons.nth(i)
+                key = await element.inner_text()
+                date_tab_texts.append(key.strip())
+            except Exception:
+                date_tab_texts.append("")
+
+        target_date_index = find_date_tab_index(date_tab_texts, target_date)
+        
+        if target_date_index is None:
+            return None
+        
+        button = all_date_buttons.nth(target_date_index)
+        await button.click(force=True)
+        await page.wait_for_timeout(2500)
+        await switch_to_list_view(page)
+
+        return result[0]
+
+    finally:
+        await context.close()
+        await browser.close()
+
+async def fetch_match_response(playwright: Playwright, url: str, target_date: datetime, api_url: str) -> Optional[str]:
+    """
+    Fetch match Web response for a specific date (automatically chooses method based on URL)
+    
+    Args:
+        playwright: Playwright instance
+        url: Tournament URL
+        target_date: Target date to scrape
+        api_url: Target response api url
+        
+    Returns:
+        Matches information or None if not found
+    """
+    is_worldtour = is_bwfworldtour_url(url)
+    
+    if is_worldtour:
+        return await fetch_response_by_url(playwright, url, target_date, api_url)
+    else:
+        return await fetch_response_by_tab(playwright, url, target_date, api_url)
+
 
 # ==================== Data Saving ====================
 

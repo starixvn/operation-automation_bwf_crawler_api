@@ -134,3 +134,34 @@ class MaxRoundsResponse(BaseModel):
     tournament_url: str
     tournament_name: str
     mode_max_round: dict[str, str]  # Format: {"MS": "R32", "WS": "R16", ...}
+
+class DateMatchData(BaseModel):
+    league_id: str
+    match_id: int
+    player_home_1_id: str
+    player_home_1_country: str
+    player_home_1_name: str
+    player_home_2_id: str
+    player_home_2_country: str
+    player_home_2_name: str
+    player_away_1_id: str
+    player_away_1_country: str
+    player_away_1_name: str
+    player_away_2_id: str
+    player_away_2_country: str
+    player_away_2_name: str
+    mode: str
+    round_name: str
+    court_name: str
+    kickoff_time: str
+    
+class DateMatchResponse(BaseModel):
+    status: str
+    message: str
+    matches: Optional[List[DateMatchData]]
+
+class DateMatchRequest(BaseModel):
+    """Match request model with specific date"""
+    tmt_code: str
+    url: str
+    date: str  # Format: YYYY-MM-DD
