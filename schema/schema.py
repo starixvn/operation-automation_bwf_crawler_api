@@ -138,15 +138,15 @@ class MaxRoundsResponse(BaseModel):
 class DateMatchData(BaseModel):
     league_id: int
     match_id: int
-    player_home_1_id: int
-    player_home_1_country: str
-    player_home_1_name: str
+    player_home_1_id: Optional[int] = None
+    player_home_1_country: Optional[str] = ""
+    player_home_1_name: Optional[str] = ""
     player_home_2_id: Optional[int] = None
     player_home_2_country: Optional[str] = ""
     player_home_2_name: Optional[str] = ""
-    player_away_1_id: int
-    player_away_1_country: str
-    player_away_1_name: str
+    player_away_1_id: Optional[int] = None
+    player_away_1_country: Optional[str] = ""
+    player_away_1_name: Optional[str] = ""
     player_away_2_id: Optional[int] = None
     player_away_2_country: Optional[str] = ""
     player_away_2_name: Optional[str] = ""
