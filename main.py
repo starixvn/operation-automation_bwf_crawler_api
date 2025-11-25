@@ -25,11 +25,13 @@ from script.get_matches_info_by_date import fetch_bwf_matches
 from script.get_this_week_tmts import main as get_this_week_tournament_list
 from script.get_draw_data import main as get_draw_data_func
 from script.map_match_info import main as map_match_info_func
+from script.get_this_week_live_tmts import main as get_this_week_live_tournament_list
 from schema import (
     TournamentRequest, DateTournamentRequest, 
     ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem,
     ParseMatchesRequest, ParseMatchesResponse,
     MaxRoundsRequest, MaxRoundsResponse,
+    ThisWeekTournamentListResponse,
     DateMatchRequest, DateMatchResponse,
     ThisWeekTournamentListResponse,
     DrawDataRequest, DrawDataResponse,
@@ -592,6 +594,29 @@ async def match_info(request: MatchInfoRequest):
             status_code=500,
             detail=f"Failed to map match info: {str(e)}"
         )
+
+@app.get("/get-live-tournament-list", response_model=ThisWeekTournamentListResponse)
+async def get_live_tournament_list():
+    """
+    Get tournament list
+    
+    Returns:
+    - TournamentListResponse with list of tournaments (without HTML)
+    """
+    try:
+        tournaments = await get_this_week_live_tournament_list()
+        return ThisWeekTournamentListResponse(
+            status="success",
+            message="Successfully got live tournament list",
+            tournaments=tournaments
+        )
+    except Exception as e:
+        logger.error(f"Failed to get live tournament list: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get live tournament list: {str(e)}"
+        )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, timeout_keep_alive=600)
