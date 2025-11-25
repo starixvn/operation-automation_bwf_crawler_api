@@ -261,7 +261,7 @@ async def parse_matches_html(request: ParseMatchesRequest):
     
     try:
         # Parse matches
-        matches = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
+        matches, msg = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
         logger.info(f"Successfully parsed {len(matches)} matches for {request.tournament_name}")
         logger.info("=" * 60)
         
@@ -488,15 +488,20 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
         tmt_url = request.url
         dt = datetime.strptime(request.date, "%Y-%m-%d")
         
-        result = await fetch_bwf_matches(tmt_code, tmt_url, dt)
+        result, msg = await fetch_bwf_matches(tmt_code, tmt_url, dt)
         match_count = len(result)
+        if msg != "success":
+            res_message = f"Scraped total {match_count} matches. At least one match_item error occurred, please check."
+        else:
+            res_message = f"Successfully scraped the specified date matches, total {match_count} matches."
+        
         elapsed_time = time.time() - start_time
         logger.info(f"Successfully in {elapsed_time:.2f}s")
         logger.info("=" * 60)
         
         return DateMatchResponse(
-            status="success",
-            message=f"Successfully scraped the specified date matches, total {match_count} matches.",
+            status = "success",
+            message = f"Scraped total {match_count} matches. At least one match_item error occurred, please check.",
             matches = result
         )
 

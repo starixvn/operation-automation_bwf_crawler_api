@@ -77,17 +77,22 @@ async def fetch_bwf_matches(tournament_code, tournament_url, date):
     league_id = extract_league_id(tournament_url)
 
     matches  = []
+    msg = "success"
 
     if result:
         for match_item in result:
-            single_match = MatchData()
-            single_match.update_league_id(league_id)
-            single_match.update(match_item)
-            matches.append(single_match.to_dict())
+            try:
+                single_match = MatchData()
+                single_match.update_league_id(league_id)
+                single_match.update(match_item)
+                matches.append(single_match.to_dict())
+            except:
+                msg = "Some error occurred!"
+                pass
     else:
         return []
 
-    return matches
+    return matches, msg
 
 if __name__ == "__main__":
     async def main():
