@@ -488,10 +488,11 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
         tmt_url = request.url
         dt = datetime.strptime(request.date, "%Y-%m-%d")
         
-        result, msg = await fetch_bwf_matches(tmt_code, tmt_url, dt)
+        result, errors = await fetch_bwf_matches(tmt_code, tmt_url, dt)
         match_count = len(result)
-        if msg != "success":
-            res_message = f"Scraped total {match_count} matches. At least one match_item error occurred, please check."
+        if errors != 0:
+            res_message = f"Scraped total {match_count} matches."
+            res_message += f"{errors} match_item(s) fail."
         else:
             res_message = f"Successfully scraped the specified date matches, total {match_count} matches."
         
@@ -501,7 +502,7 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
         
         return DateMatchResponse(
             status = "success",
-            message = f"Scraped total {match_count} matches. At least one match_item error occurred, please check.",
+            message = res_message,
             matches = result
         )
 
