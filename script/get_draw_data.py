@@ -226,7 +226,7 @@ async def main(request: DrawDataRequest):
     draws_target_url = "https://extranet-lv.bwfbadminton.com/api/vue-tournament-draws"
     max_rounds_target_url = "https://extranet-lv.bwfbadminton.com/api/vue-tournament-draw-data"
     # Check if cached file exists (use league_id as filename)
-    draw_data_file = os.path.join("mode_max_round", f"{request.tournament_id}.json")
+    draw_data_file = os.path.join("draw_data", f"{request.tournament_id}.json")
     if os.path.exists(draw_data_file):
         print(f"Loading draws data from {draw_data_file}")
         with open(draw_data_file, 'r', encoding='utf-8') as f:
@@ -239,8 +239,12 @@ async def main(request: DrawDataRequest):
             return {}
 
         draws_data = await get_draw_max_rounds(playwright, request, max_rounds_target_url, draws_data)
+        
         if draws_data:
             draws_data["league_name"] = request.tournament_name
+            # Ensure directory exists before saving
+            draw_data_dir = os.path.dirname(draw_data_file)
+            os.makedirs(draw_data_dir, exist_ok=True)
             # Save to file for future use
             with open(draw_data_file, 'w', encoding='utf-8') as f:
                 json.dump(draws_data, f, ensure_ascii=False, indent=4)

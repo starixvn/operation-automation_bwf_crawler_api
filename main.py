@@ -267,7 +267,7 @@ async def parse_matches_html(request: ParseMatchesRequest):
     
     try:
         # Parse matches
-        matches, msg = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
+        matches = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
         logger.info(f"Successfully parsed {len(matches)} matches for {request.tournament_name}")
         logger.info("=" * 60)
         
