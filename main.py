@@ -474,14 +474,15 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
     logger.info("Starting scraping the specified date matches.")
     
     try:
-        # if not request.league_code or request.url:
-        #     logger.info(f"{request.league_code}")
-        #     logger.info(f"{request.url}")
-        #     logger.warning("No league code or url was given.")
-        #     raise HTTPException(status_code=400, detail="The league code and url are required")
-        # if not request.date:
-        #     logger.warning("No date was given")
-        #     raise HTTPException(status_code=400, detail="The specified date is required")
+        if not request.tmt_code:
+            logger.warning("No league code was given.")
+            raise HTTPException(status_code=400, detail="The league code is required")
+        if not request.url:
+            logger.warning("No league url was given.")
+            raise HTTPException(status_code=400, detail="The league url is required")
+        if not request.date:
+            logger.warning("No date was given")
+            raise HTTPException(status_code=400, detail="The specified date is required")
 
         tmt_code = request.tmt_code
         tmt_url = request.url
