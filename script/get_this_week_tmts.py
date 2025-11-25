@@ -69,7 +69,6 @@ async def get_this_week_tournament_list(playwright: Playwright, enter_url: str, 
 
 def parse_tournament_data(data: list[dict]) -> list[ThisWeekTournamentListItem]:
     tournament_items = []
-    print("dataaaa", data)
 
     # Process tournaments
     for tmt in data:

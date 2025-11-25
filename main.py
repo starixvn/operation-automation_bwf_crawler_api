@@ -22,12 +22,16 @@ from script.get_matches_info import get_matches_info
 from script.get_max_rounds import get_mode_max_round_async, InvalidTournamentFormatError
 from script.get_match_html import normalize_tournament_name
 from script.get_this_week_tmts import main as get_this_week_tournament_list
+from script.get_draw_data import main as get_draw_data_func
+from script.map_match_info import main as map_match_info_func
 from schema import (
     TournamentRequest, DateTournamentRequest, 
     ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem,
     ParseMatchesRequest, ParseMatchesResponse,
     MaxRoundsRequest, MaxRoundsResponse,
-    ThisWeekTournamentListResponse
+    ThisWeekTournamentListResponse,
+    DrawDataRequest, DrawDataResponse,
+    MatchInfoRequest, MatchInfoResponse, MatchInfo
 )
 from utils import clear_directory, setup_logger, cleanup_old_json_files
 
@@ -490,6 +494,54 @@ async def get_tournament_list():
         )
 
 
+@app.post("/get-draw-data", response_model=DrawDataResponse)
+async def get_draw_data(request: DrawDataRequest):
+    """
+    Get draw data
+    
+    Returns:
+    - DrawDataResponse with draw data
+    """
+    try:
+        draw_data = await get_draw_data_func(request)
+
+        # Clean up old JSON files (older than 8 days) before processing
+        cleanup_old_json_files("mode_max_round", days=8)
+
+        return DrawDataResponse(
+            status="success",
+            message="Successfully got draw data",
+            tournament_id=request.tournament_id,
+            draw_data=draw_data if draw_data else {}
+        )
+    except Exception as e:
+        logger.error(f"Failed to get draw data: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get draw data: {str(e)}"
+        )
+
+@app.post("/match-info", response_model=MatchInfoResponse)
+async def match_info(request: MatchInfoRequest):
+    """
+    Mapping match info for each match
+    
+    Returns:
+    - MatchInfoResponse with match info
+    """
+    try:
+        match_info = await map_match_info_func(request)
+        return MatchInfoResponse(
+            status="success",
+            message="Successfully mapped match info",
+            matches_data=match_info
+        )
+    except Exception as e:
+        logger.error(f"Failed to map match info: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to map match info: {str(e)}"
+        )
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, timeout_keep_alive=600)

@@ -148,3 +148,55 @@ class ThisWeekTournamentListResponse(BaseModel):
     status: str
     message: str
     tournaments: List[ThisWeekTournamentListItem]
+
+class DrawDataRequest(BaseModel):
+    """Draw data request model"""
+    tournament_id: str
+    tournament_url: str
+    tournament_name: str
+
+class DrawDataResponse(BaseModel):
+    """Draw data response model"""
+    status: str
+    message: str
+    tournament_id: str
+    draw_data: dict
+
+class MatchInfo(BaseModel):
+    """Match info"""
+    league_id: int
+    league_name: str
+    level: str
+    age_category: str  # "Juniors" or "Adults"
+    match_id: int
+    kickoff_time: str
+    player_home_1_id: Optional[int] = None
+    player_home_1_name: Optional[str] = ""
+    player_home_1_country: Optional[str] = ""
+    player_home_2_id: Optional[int] = None
+    player_home_2_name: Optional[str] = ""
+    player_home_2_country: Optional[str] = ""
+    player_away_1_id: Optional[int] = None
+    player_away_1_name: Optional[str] = ""
+    player_away_1_country: Optional[str] = ""
+    player_away_2_id: Optional[int] = None
+    player_away_2_name: Optional[str] = ""
+    player_away_2_country: Optional[str] = ""
+    mode: str  # e.g., "MS", "WS", "MD"
+    round: str  # e.g., "R32", "Quarter Final", "Final"
+    current_round: str  # e.g., "R1", "R2", "Quarter Final", "Final"
+    max_round: str  # e.g., "R32", "R16"
+
+class MatchInfoRequest(BaseModel):
+    """Map max rounds request model"""
+    tmt_id: int
+    tmt_name: str
+    tmt_level: str
+    draw_data: dict
+    matches_data: list
+
+class MatchInfoResponse(BaseModel):
+    """Map max rounds response model"""
+    status: str
+    message: str
+    matches_data: list[MatchInfo]
