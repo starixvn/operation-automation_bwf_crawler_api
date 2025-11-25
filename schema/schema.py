@@ -135,6 +135,37 @@ class MaxRoundsResponse(BaseModel):
     tournament_name: str
     mode_max_round: dict[str, str]  # Format: {"MS": "R32", "WS": "R16", ...}
 
+class DateMatchData(BaseModel):
+    league_id: int
+    match_id: int
+    player_home_1_id: Optional[int] = None
+    player_home_1_country: Optional[str] = ""
+    player_home_1_name: Optional[str] = ""
+    player_home_2_id: Optional[int] = None
+    player_home_2_country: Optional[str] = ""
+    player_home_2_name: Optional[str] = ""
+    player_away_1_id: Optional[int] = None
+    player_away_1_country: Optional[str] = ""
+    player_away_1_name: Optional[str] = ""
+    player_away_2_id: Optional[int] = None
+    player_away_2_country: Optional[str] = ""
+    player_away_2_name: Optional[str] = ""
+    mode: str
+    round: str
+    court: str
+    kickoff_time: str
+    
+class DateMatchResponse(BaseModel):
+    status: str
+    message: str
+    matches: Optional[List[DateMatchData]]
+
+class DateMatchRequest(BaseModel):
+    """Match request model with specific date"""
+    tmt_code: str
+    url: str
+    date: str  # Format: YYYY-MM-DD
+
 class ThisWeekTournamentListItem(BaseModel):
     """This week tournament list item"""
     tmt_id: int
@@ -162,28 +193,10 @@ class DrawDataResponse(BaseModel):
     tournament_id: str
     draw_data: dict
 
-class MatchInfo(BaseModel):
+class MatchInfo(DateMatchData):
     """Match info"""
-    league_id: int
     league_name: str
     level: str
-    age_category: str  # "Juniors" or "Adults"
-    match_id: int
-    kickoff_time: str
-    player_home_1_id: Optional[int] = None
-    player_home_1_name: Optional[str] = ""
-    player_home_1_country: Optional[str] = ""
-    player_home_2_id: Optional[int] = None
-    player_home_2_name: Optional[str] = ""
-    player_home_2_country: Optional[str] = ""
-    player_away_1_id: Optional[int] = None
-    player_away_1_name: Optional[str] = ""
-    player_away_1_country: Optional[str] = ""
-    player_away_2_id: Optional[int] = None
-    player_away_2_name: Optional[str] = ""
-    player_away_2_country: Optional[str] = ""
-    mode: str  # e.g., "MS", "WS", "MD"
-    round: str  # e.g., "R32", "Quarter Final", "Final"
     current_round: str  # e.g., "R1", "R2", "Quarter Final", "Final"
     max_round: str  # e.g., "R32", "R16"
 
