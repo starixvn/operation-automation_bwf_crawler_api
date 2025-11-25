@@ -466,7 +466,7 @@ async def scrape_matches_by_date(request: DateTournamentRequest):
             detail=f"Scraping failed: {str(e)}"
         )
 
-@app.get("/day-matches", response_model=DateMatchResponse)
+@app.post("/day-matches", response_model=DateMatchResponse)
 async def scrape_specified_date_matches(request: DateMatchRequest):
     import time
     start_time = time.time()
