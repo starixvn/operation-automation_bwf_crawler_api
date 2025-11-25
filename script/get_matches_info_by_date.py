@@ -7,55 +7,55 @@ import time
 
 class MatchData:
     def __init__(self):
-        self.league_id = ""
-        self.match_id = ""
-        self.player_home_1_id = ""
+        self.league_id = None
+        self.match_id = None
+        self.player_home_1_id = None
         self.player_home_1_country = ""
         self.player_home_1_name = ""
-        self.player_home_2_id = ""
+        self.player_home_2_id = None
         self.player_home_2_country = ""
         self.player_home_2_name = ""
-        self.player_away_1_id = ""
+        self.player_away_1_id = None
         self.player_away_1_country = ""
         self.player_away_1_name = ""
-        self.player_away_2_id = ""
+        self.player_away_2_id = None
         self.player_away_2_country = ""
         self.player_away_2_name = ""
         self.mode = ""
-        self.round_name = ""
-        self.court_name = ""
+        self.round = ""
+        self.court = ""
         self.kickoff_time = ""
 
     def update_league_id(self, league_id: str):
-        self.league_id = league_id
+        self.league_id = int(league_id)
     
     def update(self, match_item):
-        self.match_id = match_item["id"]
+        self.match_id = int(match_item["id"])
         
         # players
         for idx, home_player in enumerate(match_item["team1"]["players"], 1):
             if idx == 1:
-                self.player_home_1_id = home_player["id"]
+                self.player_home_1_id = int(home_player["id"])
                 self.player_home_1_country = home_player["countryCode"]
                 self.player_home_1_name = home_player["nameDisplay"]
             elif idx == 2:
-                self.player_home_2_id = home_player["id"]
+                self.player_home_2_id = int(home_player["id"])
                 self.player_home_2_country = home_player["countryCode"]
                 self.player_home_2_name = home_player["nameDisplay"]
         
         for idx, away_player in enumerate(match_item["team2"]["players"], 1):
             if idx == 1:
-                self.player_away_1_id = away_player["id"]
+                self.player_away_1_id = int(away_player["id"])
                 self.player_away_1_country = away_player["countryCode"]
                 self.player_away_1_name = away_player["nameDisplay"]
             elif idx == 2:
-                self.player_away_2_id = away_player["id"]
+                self.player_away_2_id = int(away_player["id"])
                 self.player_away_2_country = away_player["countryCode"]
                 self.player_away_2_name = away_player["nameDisplay"]
 
         self.mode = match_item["drawName"]
-        self.round_name = match_item["roundName"]
-        self.court_name = match_item["courtName"]
+        self.round = match_item["roundName"]
+        self.court = match_item["courtName"]
         self.kickoff_time = match_item["matchTimeUtc"]
     
     def to_json(self):
@@ -77,13 +77,15 @@ async def fetch_bwf_matches(tournament_code, tournament_url, date):
     league_id = extract_league_id(tournament_url)
 
     matches  = []
-    
 
-    for match_item in result:
-        single_match = MatchData()
-        single_match.update_league_id(league_id)
-        single_match.update(match_item)
-        matches.append(single_match.to_dict())
+    if result:
+        for match_item in result:
+            single_match = MatchData()
+            single_match.update_league_id(league_id)
+            single_match.update(match_item)
+            matches.append(single_match.to_dict())
+    else:
+        return []
 
     return matches
 

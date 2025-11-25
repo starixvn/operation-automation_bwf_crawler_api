@@ -136,23 +136,23 @@ class MaxRoundsResponse(BaseModel):
     mode_max_round: dict[str, str]  # Format: {"MS": "R32", "WS": "R16", ...}
 
 class DateMatchData(BaseModel):
-    league_id: str
+    league_id: int
     match_id: int
-    player_home_1_id: str
+    player_home_1_id: int
     player_home_1_country: str
     player_home_1_name: str
-    player_home_2_id: str
-    player_home_2_country: str
-    player_home_2_name: str
-    player_away_1_id: str
+    player_home_2_id: Optional[int] = None
+    player_home_2_country: Optional[str] = ""
+    player_home_2_name: Optional[str] = ""
+    player_away_1_id: int
     player_away_1_country: str
     player_away_1_name: str
-    player_away_2_id: str
-    player_away_2_country: str
-    player_away_2_name: str
+    player_away_2_id: Optional[int] = None
+    player_away_2_country: Optional[str] = ""
+    player_away_2_name: Optional[str] = ""
     mode: str
-    round_name: str
-    court_name: str
+    round: str
+    court: str
     kickoff_time: str
     
 class DateMatchResponse(BaseModel):
