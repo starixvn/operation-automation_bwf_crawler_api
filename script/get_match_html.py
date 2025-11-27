@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from unidecode import unidecode
 from playwright.async_api import Page, Playwright
+from fastapi import HTTPException
 
 
 # ==================== URL & Name Processing ====================
@@ -463,6 +464,12 @@ async def fetch_response_by_url(playwright: Playwright, url: str, target_date: d
         await page.wait_for_timeout(2500)
 
         return result[0]
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get match info: {str(e)}"
+        )
 
     finally:
         await context.close()
@@ -508,6 +515,12 @@ async def fetch_response_by_tab(playwright: Playwright, url: str, target_date: d
         await switch_to_list_view(page)
 
         return result[0]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get match info: {str(e)}"
+        )
 
     finally:
         await context.close()
