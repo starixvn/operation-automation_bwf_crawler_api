@@ -213,3 +213,10 @@ class MatchInfoResponse(BaseModel):
     status: str
     message: str
     matches_data: list[MatchInfo]
+
+class UpdateMatchesRequest(BaseModel):
+    """Match request model with specific date and update frequency"""
+    tmt_code: str
+    url: str
+    date: str
+    update_feq: int

@@ -12,6 +12,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from playwright.async_api import async_playwright
+import asyncio
 
 from script.get_this_week_tournament_html import run as run_this_week
 from script.get_two_days_match_html import main as run_two_days
@@ -26,6 +27,7 @@ from script.get_this_week_tmts import main as get_this_week_tournament_list
 from script.get_draw_data import main as get_draw_data_func
 from script.map_match_info import main as map_match_info_func
 from script.get_this_week_live_tmts import main as get_this_week_live_tournament_list
+import script.update_score # for PlaywrightManager()
 from schema import (
     TournamentRequest, DateTournamentRequest, 
     ScrapeResponse, TwoDaysResponse, TournamentListResponse, TournamentListItem,
@@ -35,10 +37,13 @@ from schema import (
     DateMatchRequest, DateMatchResponse,
     ThisWeekTournamentListResponse,
     DrawDataRequest, DrawDataResponse,
-    MatchInfoRequest, MatchInfoResponse, MatchInfo
+    MatchInfoRequest, MatchInfoResponse, MatchInfo,
+    UpdateMatchesRequest
 )
 from utils import clear_directory, setup_logger, cleanup_old_json_files
 
+manager = script.update.PlaywrightManager()
+task = None
 
 # Setup logger
 logger = setup_logger("main", "api.log")
@@ -269,7 +274,7 @@ async def parse_matches_html(request: ParseMatchesRequest):
     
     try:
         # Parse matches
-        matches, msg = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
+        matches = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
         logger.info(f"Successfully parsed {len(matches)} matches for {request.tournament_name}")
         logger.info("=" * 60)
         
@@ -616,6 +621,67 @@ async def get_live_tournament_list():
             status_code=500,
             detail=f"Failed to get live tournament list: {str(e)}"
         )
+
+@app.post("/start-updating")
+async def update_match_score(request: UpdateMatchesRequest):
+    global task
+
+    if task and not task.done():
+        return {"status": "already_running"}
+    
+    import time
+    start_time = time.time()
+    logger.info("=" * 60)
+    logger.info("Starting scraping the specified date matches.")
+    
+    try:
+        if not request.tmt_code:
+            logger.warning("No league code was given.")
+            raise HTTPException(status_code=400, detail="The league code is required")
+        if not request.url:
+            logger.warning("No league url was given.")
+            raise HTTPException(status_code=400, detail="The league url is required")
+        if not request.date:
+            logger.warning("No date was given")
+            raise HTTPException(status_code=400, detail="The specified date is required")
+
+        tmt_code = request.tmt_code
+        tmt_url = request.url
+        dt = datetime.strptime(request.date, "%Y-%m-%d")
+        feq = request.update_feq
+
+        task = asyncio.create_task(script.update_score.monitor_bwf_matches(manager, tmt_code, tmt_url, dt, feq))
+
+    except Exception as e:
+        logger.info("=" * 60)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scraping failed: {str(e)}"
+        )
+
+    return {"status": "started"}
+
+
+
+@app.get("/stop-updating")
+async def stop_api():
+    global task, manager
+    if task == None:
+        logger.info("There is no task.")
+    elif task.done() != True:
+        task.cancel()
+        manager.stop()
+        logger.info("Stop updating the match scores.")
+    elif task.cancelled() == True:
+        logger.info("Already stopped.")
+    else:
+        print(task)
+        print(task.done())
+        print(task.cancelled())
+        logger.info("Already stopped.")
+    
+    return {"status": "success", "timestamp": datetime.now().isoformat()}
+
 
 if __name__ == "__main__":
     import uvicorn

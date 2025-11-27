@@ -22,7 +22,8 @@ from .schema import (
     MatchInfo,
     DateMatchData,
     DateMatchRequest,
-    DateMatchResponse
+    DateMatchResponse,
+    UpdateMatchesRequest
 )
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "MatchInfo",
     "DateMatchData",
     "DateMatchRequest",
-    "DateMatchResponse"
+    "DateMatchResponse",
+    "UpdateMatchesRequest"
 ]
 
