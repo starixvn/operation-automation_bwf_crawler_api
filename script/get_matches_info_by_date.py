@@ -4,27 +4,11 @@ import json
 from datetime import datetime
 from script.get_match_html import fetch_match_response, extract_league_id
 import time
+from schema import DateMatchData
 
-class MatchData:
-    def __init__(self):
-        self.league_id = None
-        self.match_id = None
-        self.player_home_1_id = None
-        self.player_home_1_country = ""
-        self.player_home_1_name = ""
-        self.player_home_2_id = None
-        self.player_home_2_country = ""
-        self.player_home_2_name = ""
-        self.player_away_1_id = None
-        self.player_away_1_country = ""
-        self.player_away_1_name = ""
-        self.player_away_2_id = None
-        self.player_away_2_country = ""
-        self.player_away_2_name = ""
-        self.mode = ""
-        self.round = ""
-        self.court = ""
-        self.kickoff_time = ""
+class MatchData(DateMatchData):
+    class Config:
+        validate_assignment = True  # Allow field mutations after initialization
 
     def update_league_id(self, league_id: str):
         self.league_id = int(league_id)
@@ -86,8 +70,9 @@ async def fetch_bwf_matches(tournament_code, tournament_url, date):
                 single_match.update_league_id(league_id)
                 single_match.update(match_item)
                 matches.append(single_match.to_dict())
-            except:
+            except Exception as e:
                 errors += 1
+                print(str(e))
                 pass
 
     return matches, errors
