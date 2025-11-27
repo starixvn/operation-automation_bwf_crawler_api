@@ -1,10 +1,14 @@
 """
 Badminton Tournament Scraper API
 
-Provides three main endpoints:
-1. /this-week-tournaments - Get this week's tournament list
-2. /two-days-matches - Get today and tomorrow schedules for specified tournaments
-3. /yesterday-matches - Get yesterday's matches from yesterday's tournament list
+Provides the following endpoints:
+1. GET / - API root path with endpoint information
+2. GET /health - Health check endpoint
+3. GET /get-tournament-list - Get current week's tournament list
+4. POST /get-max-rounds - Get maximum rounds for each mode
+5. POST /day-matches - Get matches for a specific tournament on a specific date
+6. POST /get-draw-data - Get tournament draw data
+7. POST /match-info - Map match information with tournament details
 """
 
 from fastapi import FastAPI, HTTPException
@@ -59,10 +63,12 @@ async def root():
         "message": "Badminton Tournament Scraper API",
         "version": "1.0.0",
         "endpoints": {
-            "this_week": "/this-week-tournaments",
-            "two_days": "/two-days-matches",
-            "yesterday_tournaments": "/yesterday-tournaments",
-            "matches_by_date": "/matches-by-date"
+            "health": "/health",
+            "get_tournament_list": "/get-tournament-list",
+            "get_max_rounds": "/get-max-rounds",
+            "day_matches": "/day-matches",
+            "get_draw_data": "/get-draw-data",
+            "match_info": "/match-info"
         }
     }
 
