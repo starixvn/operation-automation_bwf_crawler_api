@@ -4,8 +4,10 @@ A FastAPI-based web scraper for extracting Badminton World Federation (BWF) tour
 
 ## Features
 
-- **This Week's Tournaments** - Scrape paginated list of current week tournaments
-- **Two-Day Schedules** - Extract today and tomorrow match schedules for specific tournaments
+- **Tournament List** - Get current week's tournament list
+- **Date Matches** - Scrape matches for a specific tournament on a specific date
+- **Draw Data** - Get maximum rounds for each mode (MS, WS, MD, WD, XD) for tournaments
+- **Match Info** - Map match information with tournament details
 - **Docker Support** - Containerized deployment with Docker Compose
 - **Anti-Detection** - Browser automation with webdriver concealment
 - **Dual-Site Support** - Handles both regular BWF and BWF World Tour website formats
@@ -95,46 +97,42 @@ Returns server health status.
 #### Get This Week's Tournaments
 
 ```bash
-GET /this-week-tournaments
+GET /get-tournament-list
 ```
 
-Scrapes the current week's tournament list from BWF calendar.
+Gets the current week's tournament list from BWF calendar.
 
 **Response:**
 ```json
 {
   "status": "success",
-  "message": "Successfully scraped this week's tournaments, total 3 files",
-  "timestamp": "2025-11-11T10:30:00.123456",
-  "output_dir": "this_week",
-  "files": {
-    "page_1.html": "<html>...</html>",
-    "page_2.html": "<html>...</html>"
-  }
+  "message": "Successfully got tournament list",
+  "tournaments": [
+    {
+      "tmt_id": 5287,
+      "tmt_code": "CLASH_OF_CLANS_ARCTIC_OPEN_2025",
+      "tmt_url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+      "tmt_name": "Clash of Clans Arctic Open 2025",
+      "tmt_level": "World Tour Super 750"
+    }
+  ]
 }
 ```
 
-#### Get Two-Day Match Schedules
+#### Get Day Matches
 
 ```bash
-POST /two-days-matches
+POST /day-matches
 ```
 
-Scrapes today and tomorrow schedules for specified tournament URLs.
+Scrapes matches for a specific tournament on a specific date.
 
 **Request Body:**
 ```json
 {
-  "tournaments": [
-    {
-      "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
-      "level": "World Tour Super 750",
-      "country": "Finland",
-      "city": "Vantaa",
-      "IANA_timezone": "Europe/Helsinki"
-    }
-  ],
-  "output_dir": "two_days"
+  "tmt_code": "CLASH_OF_CLANS_ARCTIC_OPEN_2025",
+  "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+  "date": "2025-11-11"
 }
 ```
 
@@ -142,16 +140,27 @@ Scrapes today and tomorrow schedules for specified tournament URLs.
 ```json
 {
   "status": "success",
-  "message": "Successfully scraped today and tomorrow schedules for 1 tournaments",
-  "tournaments": [
+  "message": "Successfully scraped the specified date matches, total 20 matches.",
+  "matches": [
     {
-      "tournament_url": "https://...",
-      "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex",
-      "league_id": "5287",
-      "league_name": "Clash of Clans Arctic Open 2025",
-      "max_round": "R32",
-      "today_html": "<html>...</html>",
-      "tomorrow_html": "<html>...</html>"
+      "league_id": 5287,
+      "match_id": 12345,
+      "player_home_1_id": 1001,
+      "player_home_1_country": "CHN",
+      "player_home_1_name": "Player A",
+      "player_home_2_id": null,
+      "player_home_2_country": "",
+      "player_home_2_name": "",
+      "player_away_1_id": 1002,
+      "player_away_1_country": "JPN",
+      "player_away_1_name": "Player B",
+      "player_away_2_id": null,
+      "player_away_2_country": "",
+      "player_away_2_name": "",
+      "mode": "MS",
+      "round": "R32",
+      "court": "Court 1",
+      "kickoff_time": "2025-11-11T10:00:00"
     }
   ]
 }
@@ -161,6 +170,91 @@ Scrapes today and tomorrow schedules for specified tournament URLs.
 
 The following tournament types are automatically excluded:
 - Para-badminton tournaments (level contains "para")
+- Empty or null level
+- "International Series"
+- "International Challenge"
+- "Junior International Series"
+- "Junior Tournament"
+
+#### Get Draw Data
+
+```bash
+POST /get-draw-data
+```
+
+Gets tournament draw data.
+
+**Request Body:**
+```json
+{
+  "tournament_id": "5287",
+  "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+  "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Successfully got draw data in 5.23s",
+  "tournament_id": "5287",
+  "draw_data": {
+    "MS": {...},
+    "WS": {...},
+    "MD": {...},
+    "WD": {...},
+    "XD": {...}
+  }
+}
+```
+
+#### Match Info
+
+```bash
+POST /match-info
+```
+
+Maps match information with tournament details.
+
+**Request Body:**
+```json
+{
+  "tmt_id": 5287,
+  "tmt_name": "Clash of Clans Arctic Open 2025",
+  "tmt_level": "World Tour Super 750",
+  "draw_data": {...},
+  "matches_data": [...]
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Successfully mapped match info",
+  "matches_data": [
+    {
+      "league_id": 5287,
+      "match_id": 12345,
+      "player_home_1_id": 1001,
+      "player_home_1_country": "CHN",
+      "player_home_1_name": "Player A",
+      "player_away_1_id": 1002,
+      "player_away_1_country": "JPN",
+      "player_away_1_name": "Player B",
+      "mode": "MS",
+      "round": "R32",
+      "court": "Court 1",
+      "kickoff_time": "2025-11-11T10:00:00",
+      "league_name": "Clash of Clans Arctic Open 2025",
+      "level": "World Tour Super 750",
+      "current_round": "R32",
+      "max_round": "R32"
+    }
+  ]
+}
+```
 
 
 ## Usage Examples
@@ -179,31 +273,40 @@ BASE_URL = "http://localhost:8080"
 # BASE_URL = "http://localhost:8000"
 # BASE_URL = "http://192.168.1.100:8000"  # Network access
 
-# Get this week's tournaments
-response = requests.get(f"{BASE_URL}/this-week-tournaments")
+# Get tournament list
+response = requests.get(f"{BASE_URL}/get-tournament-list")
 data = response.json()
 print(f"Status: {data['status']}")
-print(f"Files: {len(data['files'])}")
+print(f"Tournaments: {len(data['tournaments'])}")
 
-# Get two-day schedules
+# Get max rounds for a tournament
 payload = {
-    "tournaments": [
-        {
-            "url": "https://bwfbadminton.com/tournament/5263/yonex-sunrise-bwf-world-junior-mixed-team-championships-2025",
-            "level": "World Junior Championships",
-            "country": "China",
-            "city": "Nanjing",
-            "IANA_timezone": "Asia/Shanghai"
-        }
-    ],
-    "output_dir": "two_days"
+    "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+    "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex"
 }
-response = requests.post(f"{BASE_URL}/two-days-matches", json=payload)
+response = requests.post(f"{BASE_URL}/get-max-rounds", json=payload)
 data = response.json()
+print(f"Max Rounds: {data['mode_max_round']}")
 
-for tournament in data["tournaments"]:
-    print(f"Tournament: {tournament['league_name']}")
-    print(f"Max Round: {tournament['max_round']}")
+# Get matches for a specific date
+payload = {
+    "tmt_code": "CLASH_OF_CLANS_ARCTIC_OPEN_2025",
+    "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+    "date": "2025-11-11"
+}
+response = requests.post(f"{BASE_URL}/day-matches", json=payload)
+data = response.json()
+print(f"Matches: {len(data['matches'])}")
+
+# Get draw data
+payload = {
+    "tournament_id": "5287",
+    "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+    "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex"
+}
+response = requests.post(f"{BASE_URL}/get-draw-data", json=payload)
+data = response.json()
+print(f"Draw Data: {data['status']}")
 ```
 
 ### cURL Examples
@@ -218,40 +321,49 @@ curl http://localhost:8080/health
 # Health check (Local Development)
 # curl http://localhost:8000/health
 
-# Get this week's tournaments (Docker Compose)
-curl http://localhost:8080/this-week-tournaments
+# Get tournament list (Docker Compose)
+curl http://localhost:8080/get-tournament-list
 
-# Get two-day schedules (Docker Compose)
-curl -X POST "http://localhost:8080/two-days-matches" \
+# Get max rounds (Docker Compose)
+curl -X POST "http://localhost:8080/get-max-rounds" \
   -H "Content-Type: application/json" \
   -d '{
-    "tournaments": [
-      {
-        "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
-        "level": "World Tour Super 750",
-        "country": "Finland",
-        "city": "Vantaa",
-        "IANA_timezone": "Europe/Helsinki"
-      }
-    ],
-    "output_dir": "two_days"
+    "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+    "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex"
+  }'
+
+# Get day matches (Docker Compose)
+curl -X POST "http://localhost:8080/day-matches" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tmt_code": "CLASH_OF_CLANS_ARCTIC_OPEN_2025",
+    "url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+    "date": "2025-11-11"
+  }'
+
+# Get draw data (Docker Compose)
+curl -X POST "http://localhost:8080/get-draw-data" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tournament_id": "5287",
+    "tournament_url": "https://bwfworldtour.bwfbadminton.com/tournament/5287/clash-of-clans-arctic-open-2025-powered-by-yonex/results/",
+    "tournament_name": "clash-of-clans-arctic-open-2025-powered-by-yonex"
   }'
 ```
 
 ## Output Files
 
-The API saves scraped HTML to local directories (also mounted as Docker volumes):
+The API may save cached data to local directories (also mounted as Docker volumes):
 
-### This Week's Tournaments
-- **Directory**: `this_week/`
-- **Files**: `page_1.html`, `page_2.html`, ...
+### Max Rounds Cache
+- **Directory**: `mode_max_round/`
+- **Files**: JSON files containing cached max round data for tournaments
+- **Retention**: Files older than 8 days are automatically cleaned up
 
-### Two-Day Schedules
-- **Directory**: `two_days/` (customizable via `output_dir` parameter)
-- **Files**:
-  - `{tournament_name}_today.html` - Today's schedule
-  - `{tournament_name}_tomorrow.html` - Tomorrow's schedule
-  - `{tournament_name}_round_info.json` - Tournament metadata
+### Draw Data Cache
+- **Directory**: Various cache directories
+- **Files**: JSON files containing cached draw data
+- **Retention**: Files older than 8 days are automatically cleaned up
 
 ## Project Structure
 
@@ -329,27 +441,67 @@ The API automatically filters out unwanted tournaments based on the `level` fiel
 
 ### Data Schema
 
-#### Tournament Input
+#### Tournament List Item
 ```json
 {
-  "url": "string (required)",
-  "level": "string (required)",
-  "country": "string (optional)",
-  "city": "string (optional)",
-  "IANA_timezone": "string (optional)"
+  "tmt_id": "integer",
+  "tmt_code": "string",
+  "tmt_url": "string",
+  "tmt_name": "string",
+  "tmt_level": "string"
 }
 ```
 
-#### Tournament Output
+#### Day Matches Request
 ```json
 {
-  "tournament_url": "string",
-  "tournament_name": "string",
-  "league_id": "string",
-  "league_name": "string",
-  "max_round": "string",
-  "today_html": "string (HTML content)",
-  "tomorrow_html": "string or null (HTML content)"
+  "tmt_code": "string (required)",
+  "url": "string (required)",
+  "date": "string (required, format: YYYY-MM-DD)"
+}
+```
+
+#### Match Data
+```json
+{
+  "league_id": "integer",
+  "match_id": "integer",
+  "player_home_1_id": "integer or null",
+  "player_home_1_country": "string",
+  "player_home_1_name": "string",
+  "player_home_2_id": "integer or null",
+  "player_home_2_country": "string",
+  "player_home_2_name": "string",
+  "player_away_1_id": "integer or null",
+  "player_away_1_country": "string",
+  "player_away_1_name": "string",
+  "player_away_2_id": "integer or null",
+  "player_away_2_country": "string",
+  "player_away_2_name": "string",
+  "mode": "string (MS/WS/MD/WD/XD)",
+  "round": "string",
+  "court": "string",
+  "kickoff_time": "string (ISO format)"
+}
+```
+
+#### Draw Data Request
+```json
+{
+  "tournament_id": "string (required)",
+  "tournament_url": "string (required)",
+  "tournament_name": "string (required)"
+}
+```
+
+#### Match Info Request
+```json
+{
+  "tmt_id": "integer (required)",
+  "tmt_name": "string (required)",
+  "tmt_level": "string (required)",
+  "draw_data": "object (required)",
+  "matches_data": "array (required)"
 }
 ```
 
@@ -540,7 +692,7 @@ Test scrapers independently without the API:
 
 ```bash
 # Test weekly tournament scraper
-python script/get_this_week_tournament_html.py
+python script/get-tournament-list.py
 
 # Test two-day schedule scraper
 python script/get_two_days_match_html.py
