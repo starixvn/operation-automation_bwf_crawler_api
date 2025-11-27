@@ -490,6 +490,20 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
             logger.warning("No date was given")
             raise HTTPException(status_code=400, detail="The specified date is required")
 
+        # Filter tournaments
+        valid_tournaments, excluded_count = filter_tournaments([request.url])
+        
+        if excluded_count > 0:
+            logger.info(f"Excluded {excluded_count} tournament(s) based on level filters")
+        
+        if not valid_tournaments:
+            logger.warning("No valid tournaments after filtering")
+            return DateMatchResponse(
+                status="success",
+                message="No tournaments to scrape after filtering",
+                matches=[]
+            )
+
         tmt_code = request.tmt_code
         tmt_url = request.url
         dt = datetime.strptime(request.date, "%Y-%m-%d")

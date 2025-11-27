@@ -3,7 +3,6 @@ Tournament filtering logic
 """
 
 from typing import List
-from schema.schema import TournamentInput
 
 
 # Excluded tournament levels
@@ -15,7 +14,7 @@ EXCLUDED_LEVELS = {
 }
 
 
-def should_exclude_tournament(tournament: TournamentInput) -> bool:
+def should_exclude_tournament(tmt_url: str) -> bool:
     """
     Check if a tournament should be excluded based on its level
     
@@ -31,11 +30,11 @@ def should_exclude_tournament(tournament: TournamentInput) -> bool:
         True if tournament should be excluded, False otherwise
     """
     # Skip if level is empty
-    if not tournament.level or not tournament.level.strip():
-        return True
+    # if not tournament.level or not tournament.level.strip():
+    #     return True
     
     # Skip if level contains "para" (case insensitive)
-    if "para" in tournament.level.lower():
+    if "para" in tmt_url.lower():
         return True
     
     # Skip if level is in excluded list (case insensitive comparison)
@@ -45,7 +44,7 @@ def should_exclude_tournament(tournament: TournamentInput) -> bool:
     return False
 
 
-def filter_tournaments(tournaments: List[TournamentInput]) -> tuple[List[TournamentInput], int]:
+def filter_tournaments(tmt_url: List[str]) -> tuple[List[str], int]:
     """
     Filter out excluded tournaments
     
@@ -55,8 +54,8 @@ def filter_tournaments(tournaments: List[TournamentInput]) -> tuple[List[Tournam
     Returns:
         Tuple of (valid_tournaments, excluded_count)
     """
-    valid_tournaments = [t for t in tournaments if not should_exclude_tournament(t)]
-    excluded_count = len(tournaments) - len(valid_tournaments)
-    
+    valid_tournaments = [t for t in tmt_url if not should_exclude_tournament(t)]
+    excluded_count = len(tmt_url) - len(valid_tournaments)
+
     return valid_tournaments, excluded_count
 
