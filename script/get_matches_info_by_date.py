@@ -5,6 +5,7 @@ from datetime import datetime
 from script.get_match_html import fetch_match_response, extract_league_id
 import time
 from schema import DateMatchData
+from fastapi import HTTPException
 
 class MatchData(DateMatchData):
     class Config:
@@ -56,12 +57,18 @@ async def fetch_bwf_matches(tournament_code, tournament_url, date):
     api_url = f"https://extranet-lv.bwfbadminton.com/api/tournaments/day-matches?tournamentCode={tournament_code}&date={formatted_date}&order=2&court=0"
 
     async with async_playwright() as playwright:
-        result = await fetch_match_response(playwright, tournament_url, date, api_url)
+        try:
+            result = await fetch_match_response(playwright, tournament_url, date, api_url)
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch response: {str(e)}"
+            )
 
     league_id = extract_league_id(tournament_url)
 
     matches  = []
-    errors = 0
 
     if result:
         for match_item in result:
@@ -71,11 +78,12 @@ async def fetch_bwf_matches(tournament_code, tournament_url, date):
                 single_match.update(match_item)
                 matches.append(single_match.to_dict())
             except Exception as e:
-                errors += 1
-                print(str(e))
-                pass
+                raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get match info detail: {str(e)}"
+            )
 
-    return matches, errors
+    return matches
 
 if __name__ == "__main__":
     async def main():

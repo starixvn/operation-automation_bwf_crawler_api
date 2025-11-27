@@ -18,6 +18,7 @@ from script.get_matches_info_by_date import fetch_bwf_matches
 from script.get_this_week_tmts import main as get_this_week_tournament_list
 from script.get_draw_data import main as get_draw_data_func
 from script.map_match_info import main as map_match_info_func
+from script.tournament_filter import filter_tournaments
 from schema import (
     MaxRoundsRequest, MaxRoundsResponse,
     DateMatchRequest, DateMatchResponse,
@@ -153,13 +154,12 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
         dt = datetime.strptime(request.date, "%Y-%m-%d")
         
         logger.info(f"Fetching matches for {tmt_url} on {dt}")
-        result, errors = await fetch_bwf_matches(tmt_code, tmt_url, dt)
+        result = await fetch_bwf_matches(tmt_code, tmt_url, dt)
         match_count = len(result)
-        if errors != 0:
-            res_message = f"Scraped total {match_count} matches."
-            res_message += f"{errors} match_item(s) fail."
-        else:
+        if match_count > 0:
             res_message = f"Successfully scraped the specified date matches, total {match_count} matches."
+        else:
+            res_message = f"There are no matches in the specified date."
         
         elapsed_time = time.time() - start_time
         logger.info(f"Successfully in {elapsed_time:.2f}s")

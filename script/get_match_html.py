@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional
 from unidecode import unidecode
-from playwright.async_api import Page, Playwright
+from playwright.async_api import Page, Playwright, TimeoutError as PlaywrightTimeoutError
 from fastapi import HTTPException
 
 
@@ -299,7 +299,15 @@ async def fetch_response_by_url(playwright: Playwright, url: str, target_date: d
 
         target_url = get_date_url(url, target_date)
 
-        await page.goto(target_url, wait_until="domcontentloaded", timeout=15000)
+        try:
+            await page.goto(target_url, wait_until="domcontentloaded", timeout=15000)
+
+        except PlaywrightTimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Timeout while loading tournament page: {exc}"
+            )
+
         await initialize_page(page)
         await page.wait_for_timeout(2500)
 
@@ -328,7 +336,15 @@ async def fetch_response_by_tab(playwright: Playwright, url: str, target_date: d
 
         page.on("response", log_response)
 
-        await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+
+        except PlaywrightTimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Timeout while loading tournament page: {exc}"
+            )
+
         await initialize_page(page)        
         
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
