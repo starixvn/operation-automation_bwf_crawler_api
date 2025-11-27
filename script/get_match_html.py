@@ -458,7 +458,7 @@ async def fetch_response_by_url(playwright: Playwright, url: str, target_date: d
 
         target_url = get_date_url(url, target_date)
 
-        await page.goto(target_url, wait_until="domcontentloaded", timeout=10000)
+        await page.goto(target_url, wait_until="domcontentloaded", timeout=15000)
         await initialize_page(page)
         await page.wait_for_timeout(2500)
 
@@ -480,7 +480,7 @@ async def fetch_response_by_tab(playwright: Playwright, url: str, target_date: d
 
         page.on("response", log_response)
 
-        await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=15000)
         await initialize_page(page)        
         
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)

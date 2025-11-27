@@ -267,7 +267,7 @@ async def parse_matches_html(request: ParseMatchesRequest):
     
     try:
         # Parse matches
-        matches, msg = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
+        matches = get_matches_info(request.html, request.IANA_timezone, request.mode_max_round, request.league_id)
         logger.info(f"Successfully parsed {len(matches)} matches for {request.tournament_name}")
         logger.info("=" * 60)
         
@@ -494,6 +494,7 @@ async def scrape_specified_date_matches(request: DateMatchRequest):
         tmt_url = request.url
         dt = datetime.strptime(request.date, "%Y-%m-%d")
         
+        logger.info(f"Fetching matches for {tmt_url} on {dt}")
         result, errors = await fetch_bwf_matches(tmt_code, tmt_url, dt)
         match_count = len(result)
         if errors != 0:
@@ -553,14 +554,16 @@ async def get_draw_data(request: DrawDataRequest):
     - DrawDataResponse with draw data
     """
     try:
+        start_time = time.time()
         draw_data = await get_draw_data_func(request)
+        elapsed_time = time.time() - start_time
+        logger.info(f"Successfully got draw data in {elapsed_time:.2f}s")
 
         # Clean up old JSON files (older than 8 days) before processing
         cleanup_old_json_files("mode_max_round", days=8)
-
         return DrawDataResponse(
             status="success",
-            message="Successfully got draw data",
+            message=f"Successfully got draw data in {elapsed_time:.2f}s",
             tournament_id=request.tournament_id,
             draw_data=draw_data if draw_data else {}
         )
@@ -580,6 +583,7 @@ async def match_info(request: MatchInfoRequest):
     - MatchInfoResponse with match info
     """
     try:
+        logger.info(f"Mapping match info for {request.tmt_name}")
         match_info = await map_match_info_func(request)
         return MatchInfoResponse(
             status="success",

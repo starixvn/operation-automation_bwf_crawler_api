@@ -34,22 +34,29 @@ def calculate_max_round(mode: str, draw_data: dict) -> str:
     #   "WD-U19" -> "WD-U19"
     #   "XD U15 - Qualification" -> "XD U15"
     
-    # First, normalize dashes to spaces
-    mode_normalized = mode.replace("-", " ")
+    # First, try to find with original mode (in case draw_data uses exact format like "XD-U19")
+    if mode in draw_data:
+        return draw_data[mode].get("max_round", "")
     
-    # Remove Qualification/Qualifying keywords
-    mode_cleaned = re.sub(r'\s*(Qualification|Qualifying|Qual)\s*', '', mode_normalized, flags=re.IGNORECASE)
+    # Remove Qualification/Qualifying keywords first (before normalizing dashes)
+    mode_without_qual = re.sub(r'\s*(Qualification|Qualifying|Qual)\s*', '', mode, flags=re.IGNORECASE)
+    mode_without_qual = ' '.join(mode_without_qual.split())  # Trim extra spaces
     
-    # Trim extra spaces
-    mode_key = ' '.join(mode_cleaned.split())
+    # Try with mode without qualification (keeping original dash format)
+    if mode_without_qual in draw_data:
+        return draw_data[mode_without_qual].get("max_round", "")
     
-    # Try to find with the cleaned mode key first
-    if mode_key in draw_data:
-        return draw_data[mode_key].get("max_round", "")
+    # Normalize dashes to spaces for matching
+    mode_normalized = mode_without_qual.replace("-", " ")
+    mode_normalized = ' '.join(mode_normalized.split())  # Trim extra spaces
+    
+    # Try to find with normalized mode key (spaces instead of dashes)
+    if mode_normalized in draw_data:
+        return draw_data[mode_normalized].get("max_round", "")
     
     # If not found, try with just the base mode code (MS, WS, MD, WD, XD)
     mode_pattern = r'^(MS|WS|MD|WD|XD)'
-    match = re.search(mode_pattern, mode_key)
+    match = re.search(mode_pattern, mode_normalized)
     if match:
         base_mode = match.group(1)
         return draw_data.get(base_mode, {}).get("max_round", "")
