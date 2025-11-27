@@ -14,10 +14,10 @@ COPY . .
 RUN mkdir -p /app/two_days /app/this_week /app/logs
 
 # Expose port
-EXPOSE 8000
+EXPOSE 5000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
 # Start application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "600"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--timeout-keep-alive", "600"]
