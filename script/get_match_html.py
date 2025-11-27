@@ -9,7 +9,8 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional
 from unidecode import unidecode
-from playwright.async_api import Page, Playwright
+from playwright.async_api import Page, Playwright, TimeoutError as PlaywrightTimeoutError
+from fastapi import HTTPException
 
 
 # ==================== URL & Name Processing ====================
@@ -184,23 +185,6 @@ async def initialize_page(page: Page) -> None:
     await switch_to_list_view(page)
 
 
-async def get_schedule_html(page: Page) -> Optional[str]:
-    """Get schedule HTML from current page"""
-    if await page.get_by_role("heading", name="No schedule announced").count() > 0:
-        return None
-
-    if await page.locator(".container.results-wrapper").count() == 0:
-        return None
-
-    try:
-        await page.wait_for_selector(".container.results-wrapper", timeout=3000)
-        await page.wait_for_timeout(500)
-    except Exception:
-        return None
-
-    return await page.locator(".container.results-wrapper").evaluate("el => el.outerHTML")
-
-
 async def get_date_tabs(page: Page) -> tuple[int, any, bool]:
     """
     Get all date tabs, exclude PODIUM tab
@@ -301,44 +285,82 @@ async def create_browser_context(playwright: Playwright):
     return browser, context, page
 
 
-async def fetch_html_by_url(playwright: Playwright, url: str, target_date: datetime) -> Optional[str]:
-    """Fetch HTML for bwfworldtour site using URL with specific date"""
+async def fetch_response_by_url(playwright: Playwright, url: str, target_date: datetime, api_url: str) -> Optional[str]:
+    """Fetch Web response for regular site using goint to the specific date url"""
     browser, context, page = await create_browser_context(playwright)
     
     try:
+        result = []
+        async def log_response(response):
+            if (response.url == api_url):
+                result.append(await response.json())
+
+        page.on("response", log_response)
+
         target_url = get_date_url(url, target_date)
-        await page.goto(target_url, wait_until="domcontentloaded", timeout=10000)
+
+        try:
+            await page.goto(target_url, wait_until="domcontentloaded", timeout=15000)
+
+        except PlaywrightTimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Timeout while loading tournament page: {exc}"
+            )
+
         await initialize_page(page)
-        
-        html = await get_schedule_html(page)
-        
-        return html
+        await page.wait_for_timeout(2500)
+
+        return result[0]
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get match info: {str(e)}"
+        )
+
     finally:
         await context.close()
         await browser.close()
 
 
-async def fetch_html_by_tab(playwright: Playwright, url: str, target_date: datetime) -> Optional[str]:
-    """Fetch HTML for regular site using tab clicks with specific date"""
+async def fetch_response_by_tab(playwright: Playwright, url: str, target_date: datetime, api_url: str) -> Optional[str]:
+    """Fetch Web response for regular site using tab clicks with specific date"""
     browser, context, page = await create_browser_context(playwright)
     
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=10000)
-        await initialize_page(page)
+        result = []
+        async def log_response(response):
+            if (response.url == api_url):
+                result.append(await response.json())
+
+        page.on("response", log_response)
+
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+
+        except PlaywrightTimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Timeout while loading tournament page: {exc}"
+            )
+
+        await initialize_page(page)        
         
         total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
-        
+    
         if total_dates == 0:
             return None
         
         date_tab_texts = []
         for i in range(total_dates):
             try:
-                tab_text = await all_date_buttons.nth(i).inner_text()
-                date_tab_texts.append(tab_text.strip())
+                element = all_date_buttons.nth(i)
+                key = await element.inner_text()
+                date_tab_texts.append(key.strip())
             except Exception:
                 date_tab_texts.append("")
-        
+
         target_date_index = find_date_tab_index(date_tab_texts, target_date)
         
         if target_date_index is None:
@@ -348,179 +370,37 @@ async def fetch_html_by_tab(playwright: Playwright, url: str, target_date: datet
         await button.click(force=True)
         await page.wait_for_timeout(2500)
         await switch_to_list_view(page)
-        
-        html = await get_schedule_html(page)
-        
-        return html
+
+        return result[0]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get match info: {str(e)}"
+        )
+
     finally:
         await context.close()
         await browser.close()
 
 
-async def fetch_match_html(playwright: Playwright, url: str, target_date: datetime) -> Optional[str]:
+async def fetch_match_response(playwright: Playwright, url: str, target_date: datetime, api_url: str) -> Optional[str]:
     """
-    Fetch match HTML for a specific date (automatically chooses method based on URL)
+    Fetch match Web response for a specific date (automatically chooses method based on URL)
     
     Args:
         playwright: Playwright instance
         url: Tournament URL
         target_date: Target date to scrape
+        api_url: Target response api url
         
     Returns:
-        HTML string or None if not found
+        Matches information or None if not found
     """
     is_worldtour = is_bwfworldtour_url(url)
     
     if is_worldtour:
-        return await fetch_html_by_url(playwright, url, target_date)
+        return await fetch_response_by_url(playwright, url, target_date, api_url)
     else:
-        return await fetch_html_by_tab(playwright, url, target_date)
-
-
-async def fetch_all_dates_mode_max_round(playwright: Playwright, url: str) -> dict[str, str]:
-    """
-    Fetch mode_max_round by traversing all date tabs from first to last
-    
-    Args:
-        playwright: Playwright instance
-        url: Tournament URL
-        
-    Returns:
-        Dictionary with mode as key and max round (e.g., "R32") as value
-    """
-    mode_max_round = {}
-    browser, context, page = await create_browser_context(playwright)
-    
-    try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=5000)
-        await initialize_page(page)
-        
-        # Try to get date tabs (works for both regular and worldtour sites)
-        total_dates, all_date_buttons, is_li_format = await get_date_tabs(page)
-        
-        if total_dates == 0:
-            print(f"No date tabs found for {url}, trying to get mode_max_round from current page")
-            # If no date tabs, try to get HTML from current page
-            await switch_to_list_view(page)
-            html = await get_schedule_html(page)
-            if html:
-                mode_max_round = find_mode_max_round(html)
-                print(f"Found mode_max_round from current page: {mode_max_round}")
-            return mode_max_round
-        
-        print(f"Found {total_dates} date tabs for {url}")
-        
-        # Traverse each date tab from first to last
-        for i in range(total_dates):
-            try:
-                button = all_date_buttons.nth(i)
-                await button.click(force=True)
-                await page.wait_for_timeout(2500)
-                await switch_to_list_view(page)
-                
-                html = await get_schedule_html(page)
-                
-                if html:
-                    # Find mode_max_round for this date
-                    current_round = find_mode_max_round(html)
-                    
-                    # Update with maximum values
-                    for mode, round_str in current_round.items():
-                        round_num = int(round_str[1:])
-                        if mode not in mode_max_round:
-                            mode_max_round[mode] = round_str
-                        else:
-                            existing_num = int(mode_max_round[mode][1:])
-                            if round_num > existing_num:
-                                mode_max_round[mode] = round_str
-                    
-                    print(f"Date tab {i}: found rounds {current_round}")
-            except Exception as e:
-                print(f"Error processing date tab {i}: {str(e)}")
-                continue
-        
-        return mode_max_round
-    finally:
-        await context.close()
-        await browser.close()
-
-
-# ==================== Data Saving ====================
-
-def save_match_data(
-    url: str,
-    level: str,
-    html: str,
-    mode_max_round: dict[str, str],
-    target_date: datetime,
-    output_dir: str,
-    use_date_suffix: bool = True,
-    country: str = "",
-    city: str = "",
-    timezone: str = "",
-    tournament_name: str = None
-) -> None:
-    """
-    Save tournament match data for a specific date
-    
-    Args:
-        url: Tournament URL
-        level: Tournament level
-        html: HTML content
-        mode_max_round: Mode max round dict
-        target_date: Target date
-        output_dir: Output directory
-        use_date_suffix: Whether to add date suffix to filename
-        country: Tournament country
-        city: Tournament city
-        timezone: Tournament IANA timezone
-        tournament_name: Optional tournament name (will be converted to filename-safe format)
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    tournament_name = normalize_tournament_name(tournament_name)
-    
-    # Determine filename
-    if use_date_suffix:
-        today = datetime.now().date()
-        target_date_only = target_date.date()
-        
-        if target_date_only == today - timedelta(days=1):
-            suffix = "yesterday"
-        elif target_date_only == today:
-            suffix = "today"
-        elif target_date_only == today + timedelta(days=1):
-            suffix = "tomorrow"
-        else:
-            suffix = target_date.strftime("%Y-%m-%d")
-        
-        html_filename = f"{tournament_name}_{suffix}.html"
-    else:
-        html_filename = f"{tournament_name}.html"
-    
-    # Save HTML
-    html_file = os.path.join(output_dir, html_filename)
-    with open(html_file, "w", encoding="utf-8") as f:
-        f.write(unidecode(html))
-    
-    # Save round info
-    league_id = extract_league_id(url)
-    age_category = "Juniors" if "junior" in level.lower() else "Adults"
-    
-    round_info = {
-        "tournament_url": url,
-        "league_id": league_id,
-        "league_name": tournament_name,
-        "level": level,
-        "country": country,
-        "city": city,
-        "IANA_timezone": timezone,
-        "age_category": age_category,
-        "mode_max_round": mode_max_round,
-        "target_date": target_date.strftime("%Y-%m-%d"),
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    round_file = os.path.join(output_dir, f"{tournament_name}_round_info.json")
-    with open(round_file, "w", encoding="utf-8") as f:
-        json.dump(round_info, f, ensure_ascii=False, indent=2)
+        return await fetch_response_by_tab(playwright, url, target_date, api_url)
 
